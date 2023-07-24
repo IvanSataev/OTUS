@@ -10,8 +10,9 @@ sleep 3
 
 echo "NULLIFY SUPERBLOCK"
 mdadm --zero-superblock --force /dev/sd{b,c,d,e,f}
-mdadm --create --verbose /dev/md128 -l 6 -n 5 /dev/sd{b,c,d,e,f}
+mdadm --create --verbose /dev/md128 -l 5 -n 5 /dev/sd{b,c,d,e,f}
 cat /proc/mdstat
+sleep 10
 
 echo "CREATE MDADM.CONF"
 echo "DEVICE partitions" > /etc/mdadm.conf
@@ -49,6 +50,9 @@ echo "FORMAT PARTITION"
 for i in $(seq 1 5);do sudo mkfs.ext4 /dev/md128p$i; done
 sudo mkdir /mnt/part{1,2,3,4,5}
 
+for i in $(seq 1 5);do echo -en "/dev/md128p$i /mnt/part$i ext 4 defaults 0 0\n" | sudo tee -a /etc/fstab  ; done
 echo "MOUNT"
 for i in $(seq 1 5);do mount  /dev/md128p$i /mnt/part$i; done
 ls -Rl /mnt/
+
+
