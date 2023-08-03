@@ -47,10 +47,11 @@ EOF
 chmod +x /opt/watchlog.sh
 
 systemctl daemon-reload
+systemctl start watchlog.service
 systemctl start watchlog.timer 
 
 echo "LOG MESSAGES"
-tail -n 15 /var/log/messages 
+cat /var/log/messages |grep 'I found word' 
 
 
 cat >> /etc/systemd/system/spawn-fcgi.service << EOF
