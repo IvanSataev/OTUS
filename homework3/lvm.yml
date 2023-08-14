@@ -1,0 +1,31 @@
+---
+- name: reduce lvm root
+  hosts: all
+  tasks:
+  - reboot:
+  - name: remove
+    shell: "yes | lvremove /dev/VolGroup00/LogVol00"
+  
+  - name: create
+    shell: "yes | lvcreate -n VolGroup00/LogVol00 -L 8G /dev/VolGroup00"
+
+  - name: create fs
+    shell: "mkfs.xfs /dev/VolGroup00/LogVol00"
+
+  - name: mount
+    shell: "mount /dev/VolGroup00/LogVol00 /mnt"
+
+  - name: copy file back
+    shell: "xfsdump -J - /dev/vg_root/lv_root | xfsrestore -J - /mnt"  
+
+  - name: mount
+    shell: "for i in /proc/ /sys/ /dev/ /run/ /boot/; do mount --bind $i /mnt$i; done"
+
+  - name: chroot
+    shell: |
+        chroot /mnt/ /bin/bash <<"EOT"
+        grub2-mkconfig -o /boot/grub2/grub.cfg
+        cd /boot ; for i in `ls initramfs-*img`; do dracut -v $i `echo $i|sed "s/initramfs-//g;s/.img//g"` --force; done
+        EOT
+        
+  - reboot:  
