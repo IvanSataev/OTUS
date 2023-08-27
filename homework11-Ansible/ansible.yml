@@ -1,0 +1,32 @@
+---
+- name: Install nginx
+  hosts: all
+  vars: 
+    port_nginx: 8080
+  handlers:
+    - name: restart service 
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+  tasks:
+  - name: Install EPEL Repo package from standard repo
+    yum:
+      name: epel-release
+      state: present
+
+  - name: install nginx and dependences
+    ansible.builtin.yum:
+      name: nginx
+      disable_gpg_check: yes
+      state: latest
+    notify: restart service 
+    tags:
+    - nginx-configuration
+
+  - name: configure nginx
+    ansible.builtin.template:
+      src: nginx.conf.j2
+      dest: /etc/nginx/nginx.conf
+    tags:
+    - nginx-configuration
