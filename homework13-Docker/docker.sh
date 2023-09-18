@@ -1,17 +1,19 @@
 #!/bin/bash
 sudo -i
+### Downloads and installation of necessary applications
 yum install -y vim docker net-tools
 sudo curl -L "https://github.com/docker/compose/releases/download/1.23.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/sbin/docker-compose
 sudo chmod +x /usr/local/sbin/docker-compose
 systemctl start docker
 mkdir hosts logs www
 setenforce 0
-
+### formation of the start page with phpinfo
 cat >> www/index.php << EOF
 <?php
 echo phpinfo();
 EOF
 
+### create nginx configure file
 cat >> nginx.conf << EOF
 server {
     index index.php;
@@ -31,13 +33,14 @@ server {
     }
 }
 EOF
-
+### Dockerfile build php conteiner
 cat >> Dockerfile << EOF
 FROM php:7.4-fpm
 RUN set -ex && apt update -y  && apt -y upgrade
 WORKDIR /var/www
 EOF
 
+### docker-compose file for up containers
 cat >> docker-compose.yml << EOF
 version: '3.7'
 services:
@@ -56,6 +59,6 @@ services:
 EOF
 
 docker-compose up -d
-
+echo "GET START PAGE"
 curl 127.0.0.1:8080/index.php
 
