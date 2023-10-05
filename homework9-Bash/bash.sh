@@ -1,8 +1,13 @@
 #!/bin/bash
 if [ -z $1 ] 
 then
-    echo "need to transfer the file log" 
-    exit 1
+    if [ $? -ne 0 ]
+    then 
+        echo "need to transfer the file log" 
+        exit 1
+    else
+        FILE_NAME=$(find /var/log/nginx/ -type f -name 'access.log')
+    fi    
 elif [ ! -e $1 ]
 then
     echo "not found the file log" 
@@ -11,6 +16,15 @@ fi
 
 FILE_NAME=$1
 TIME_STAMP=$(date)
+
+function get_last_timestamp {
+   TIME_STAMP=$(grep -E '^([0-9]+\.*){4}(\s-?){3}\[.*\]' ${FILE_NAME} \
+   |  tail -n 1 | cut -d ' ' -f 4  \
+   |sed -e 's/\[//g' -e 's/\//-/g' \
+   | awk -F':' '{print $1,$2":"$3":"$4}' )
+   
+   date +%s -d "${TIME_STAMP}"
+}
 
 function get_ip { 
 grep -E '^([0-9]+\.*){4}' ${FILE_NAME} \
@@ -44,10 +58,10 @@ then
     echo "Error: mutt not installed"
     exit 1
 fi
+get_last_timestamp
 
-if [ ! -N ${FILE_NAME} ]  
+if [ -N ${FILE_NAME} ]  
 then
-
 
 mutt -s "subject" -- sataev.i@samberi.com << EOF 
 Data for the period:$TIME_STAMP
@@ -61,4 +75,10 @@ Error code:
 $(get_error_code)
 EOF
 fi
-#* * * * * root flock -w0 /tmp/1.lock /bash.sh 
+
+grep -i 'flock -w0 /var/lock /bash.sh' /etc/crontab &>>/dev/null
+
+if [ $? -ne 0 ]
+then
+    cat '* * * * * root flock -w0 /var/lock /bash.sh'  >> /etc/crontab
+fi
