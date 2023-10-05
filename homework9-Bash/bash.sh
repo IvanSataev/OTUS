@@ -1,6 +1,7 @@
 #!/bin/bash
+TIME_START=$(date)
 ### definition path log file
-if [ -z $1 ] 
+if [ ! -z $1 ] 
 then
     if [ ! -e $1 ]
     then
@@ -8,7 +9,6 @@ then
     exit 1
     else
        FILE_NAME=$1 
-       echo $FILE_NAME
     fi    
 else
     $(find /var/log/nginx/ -type f -name 'access.log' &>/dev/null)
@@ -78,8 +78,9 @@ TMS=$(cat /last_timestamp)
 ### main block, sand email
 if [ "${TMP}" -gt "${TMS}" ]  
 then
-mutt -s "subject" -- sataev.i@samberi.com << EOF 
-Data for the period:$TIME_STAMP
+
+mutt -s "parse log" -- sataev.i@samberi.com << EOF 
+Data for the period:${TIME_START}-$(date)
 URL:
 $(get_http_request)
 
