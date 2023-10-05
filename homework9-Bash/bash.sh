@@ -1,26 +1,33 @@
 #!/bin/bash
+### definition path log file
 if [ -z $1 ] 
 then
-    if [ $? -ne 0 ]
-    then 
-        echo "need to transfer the file log" 
-        exit 1
-    else
-        FILE_NAME=$(find /var/log/nginx/ -type f -name 'access.log')
-    fi    
-elif [ ! -e $1 ]
-then
+    if [ ! -e $1 ]
+    then
     echo "not found the file log" 
     exit 1
-fi  
-
+    else
+       FILE_NAME=$1 
+       echo $FILE_NAME
+    fi    
+else
+    $(find /var/log/nginx/ -type f -name 'access.log' &>/dev/null)
+    if [ $? -ne 0 ]
+    then 
+        echo "need to specify the log file"
+        exit 1
+    else
+        FILE_NAME="/var/log/nginx/access.log"
+    fi    
+fi    
+### create file with last timestamp
 if [ ! -e "/last_timestamp" ]
 then
     echo 0 > /last_timestamp
 fi
 
-FILE_NAME=$1
 
+### block support function
 function get_last_timestamp {
    TIME_STAMP=$(grep -E '^([0-9]+\.*){4}(\s-?){3}\[.*\]' ${FILE_NAME} \
    |  tail -n 1 | cut -d ' ' -f 4  \
@@ -56,6 +63,7 @@ grep -E '^([0-9]+\.*){4}(\s-?){3}\[.*\]\s"(GET|HEAD|POST).+"\s\w{3}\s' ${FILE_NA
 | awk '{ print "Number of request: " $1, "CODE: " $2 }'
 }
 
+### check installation mutt
 $(mutt -v &>/dev/null)
 
 if [  $? -ne 0 ] 
@@ -63,13 +71,11 @@ then
     echo "Error: mutt not installed"
     exit 1
 fi
-
+### two temporary variables, since functions cannot be compared
 TMP=$(get_last_timestamp)
 TMS=$(cat /last_timestamp)
 
-echo $TMS
-echo $TMP
-
+### main block, sand email
 if [ "${TMP}" -gt "${TMS}" ]  
 then
 mutt -s "subject" -- sataev.i@samberi.com << EOF 
