@@ -37,9 +37,19 @@ grep -E '^([0-9]+\.*){4}(\s-?){3}\[.*\]\s"(GET|HEAD|POST).+"\s\w{3}\s' ${FILE_NA
 | awk '{ print "Number of request: " $1, "CODE: "$2 }'
 }
 
+$(mutt -v &>/dev/null)
+
+if [ ! $? -eq 0 ] 
+then
+    echo "Error: mutt not installed"
+    exit 1
+fi
+
 if [ ! -N ${FILE_NAME} ]  
 then
-cat << EOF 
+$(truncate -s 0 test)
+
+cat >> test << EOF 
 Data for the period:$TIME_STAMP
 URL:
 $(get_http_request)
@@ -50,5 +60,7 @@ $(get_ip)
 Error code:
 $(get_error_code)
 EOF
+
+cat test | mutt -s "subject" -- sataev.i@samberi.com
 fi
  
