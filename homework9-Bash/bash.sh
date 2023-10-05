@@ -14,8 +14,12 @@ then
     exit 1
 fi  
 
+if [ ! -e "/last_timestamp" ]
+then
+    echo 0 > /last_timestamp
+fi
+
 FILE_NAME=$1
-TIME_STAMP=$(date)
 
 function get_last_timestamp {
    TIME_STAMP=$(grep -E '^([0-9]+\.*){4}(\s-?){3}\[.*\]' ${FILE_NAME} \
@@ -23,7 +27,8 @@ function get_last_timestamp {
    |sed -e 's/\[//g' -e 's/\//-/g' \
    | awk -F':' '{print $1,$2":"$3":"$4}' )
    
-   date +%s -d "${TIME_STAMP}"
+    date +%s -d "${TIME_STAMP}"
+
 }
 
 function get_ip { 
@@ -58,11 +63,15 @@ then
     echo "Error: mutt not installed"
     exit 1
 fi
-get_last_timestamp
 
-if [ -N ${FILE_NAME} ]  
+TMP=$(get_last_timestamp)
+TMS=$(cat /last_timestamp)
+
+echo $TMS
+echo $TMP
+
+if [ "${TMP}" -gt "${TMS}" ]  
 then
-
 mutt -s "subject" -- sataev.i@samberi.com << EOF 
 Data for the period:$TIME_STAMP
 URL:
@@ -74,8 +83,11 @@ $(get_ip)
 Error code:
 $(get_error_code)
 EOF
+
+echo $TMP > /last_timestamp
 fi
 
+### add task in crontab
 grep -i 'flock -w0 /var/lock /bash.sh' /etc/crontab &>>/dev/null
 
 if [ $? -ne 0 ]
