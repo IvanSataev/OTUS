@@ -79,7 +79,7 @@ TMS=$(cat /last_timestamp)
 if [ "${TMP}" -gt "${TMS}" ]  
 then
 
-mutt -s "parse log" -- sataev.i@samberi.com << EOF 
+mutt -s "parse log" -- root@localhost << EOF 
 Data for the period:${TIME_START}-$(date)
 URL:
 $(get_http_request)
