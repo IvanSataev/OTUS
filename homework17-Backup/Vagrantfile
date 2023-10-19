@@ -14,22 +14,22 @@ Vagrant.configure("2") do |config|
   config.vm.define "server" do |back_s| 
     back_s.vm.network "private_network", ip: "192.168.56.160" 
     back_s.vm.hostname = "server" 
-    config.vm.provision "ansible" do |ansible|
-      ansible.playbook = "backup_server.yml"
-      ansible.become_user = "root" 
-      ansible.compatibility_mode = "2.0"
-      ansible.become = true
+    back_s.vm.provision "ansible" do |ansible_s|
+      ansible_s.playbook = "backup_server.yml"
+      ansible_s.become_user = "root" 
+      ansible_s.compatibility_mode = "2.0"
+      ansible_s.become = true
     end  
     
   end   
   config.vm.define "client" do |back_c| 
     back_c.vm.network "private_network", ip: "192.168.56.150"
     back_c.vm.hostname = "client" 
-    config.vm.provision "ansible" do |ansible|
-      ansible.playbook = "backup_client.yml"
-      ansible.become_user = "root" 
-      ansible.compatibility_mode = "2.0"
-      ansible.become = true
+    back_c.vm.provision "ansible" do |ansible_c|
+      ansible_c.playbook = "backup_client.yml"
+      ansible_c.become_user = "root" 
+      ansible_c.compatibility_mode = "2.0"
+      ansible_c.become = true
     end  
     
   end 

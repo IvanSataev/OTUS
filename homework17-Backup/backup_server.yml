@@ -1,19 +1,13 @@
 - name: Configure server
-  hosts: all
+  hosts: server
   handlers: 
-    - name: RESTART SERVICE ZABBIX
-      service:
-        name: zabbix-agent
-        state: restarted
-      ignore_errors: yes
-
     - name: RESTART SERVICE SSHD
       service:
         name: sshd 
         state: reloaded
 
   tasks:
-  - name: install soft
+  - name: Install soft
     yum: 
       name: epel-release, vim 
 
@@ -21,22 +15,22 @@
     yum:    
      name: borgbackup 
 
-  - name: CREATE IB USER
+  - name: Create borg user
     user:
       name: borg
       state: present
       append: yes
       groups: sshd
 
-  - name: CLOSE ACCEPT SSH ROOT
+  - name: Open ssh perminition
     lineinfile:
       path: /etc/ssh/sshd_config
       regexp: '^\s*.?\s*PermitRootLogin'
       line: 'PermitRootLogin yes'
     notify: RESTART SERVICE SSHD  
     
-  - name: 
-    ansible.builtin.file:
+  - name: Create backup directory 
+    file:
       dest: /var/backup
       owner: borg
       group: borg
@@ -51,14 +45,35 @@
       state: directory
       mode: 0700
 
-  - name: Borg ssh file
+  - name: Borg ssh keypair
     file:
-      dest: /home/borg/.ssh/authorized_keys
+      dest: /home/borg/.ssh/id_ssh_rsa
       owner: borg
       group: borg
       state: touch
       mode: 0600
 
+  - name: Generate keypair 
+    ansible.builtin.openssh_keypair:
+      path: /home/borg/.ssh/id_ssh_rsa
+      owner: borg
+      group: borg
+
+  - name: COPY /home/borg/.ssh/authorized_keys
+    ansible.builtin.copy:
+      src: /home/borg/.ssh/id_ssh_rsa.pub
+      dest: /home/borg/.ssh/authorized_keys
+      owner: borg
+      group: borg
+      mode: 0600   
+      remote_src: yes
+
+  - name: COPY /home/borg/.ssh/authorized_keys
+    ansible.builtin.fetch:
+      src: /home/borg/.ssh/id_ssh_rsa
+      dest: ./id_ssh_rsa    
+      flat: yes
+  
 
 
 

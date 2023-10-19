@@ -1,55 +1,119 @@
 - name: Configure client
   hosts: all
-
+  become_user: root
   handlers: 
-
     - name: RESTART SERVICE SSHD
       service:
         name: sshd 
         state: reloaded
+
+    - name: BORG SERVICE
+      service:
+        name: borg-backup.timer 
+        state: restarted
+        enabled: yes   
+
   tasks:
-  - name: install soft
+  - name: Install soft
     yum: 
       name: epel-release, vim 
-  - name: CLOSE ACCEPT SSH ROOT
+      
+  - name: Open ssh perminition 
     lineinfile:
       path: /etc/ssh/sshd_config
       regexp: '^\s*.?\s*PermitRootLogin'
       line: 'PermitRootLogin yes'
     notify: RESTART SERVICE SSHD  
 
-  - name: install soft
+  - name: Install soft
     yum:    
      name: borgbackup 
 
-  - name: CREATE IB USER
+  - name: Create borg user
     user:
       name: borg
       state: present
       append: yes
       groups: sshd
 
+  # - name: Borg ssh directory
+  #   file:
+  #     dest: /home/vagrant/.ssh/
+  #     owner: vagrant
+  #     group: vagrant
+  #     state: directory
+  #     mode: 0700 
+  
+  # - name: Borg ssh keypair
+  #   copy:
+  #     src: id_ssh_rsa
+  #     dest: /home/vagrant/.ssh/id_rsa        
+  #     owner: vagrant
+  #     group: vagrant
+  #     mode: 0600
+
   - name: Borg ssh directory
     file:
-      dest: /home/borg/.ssh/authorized_keys
-      owner: borg
-      group: borg
+      dest: /root/.ssh/
+      owner: root
+      group: root
       state: directory
-      mode: 0700
-
-  - name: generate keypair 
-    ansible.builtin.openssh_keypair:
-      path: /home/borg/.ssh/
-      owner: borg
-      group: borg 
-
-  - name: COPY /home/borg/.ssh/authorized_keys
-    ansible.builtin.fetch:
-      src: /home/borg/.ssh/authorized_keys
-      dest: ./  
-
-  - name: Initialisation backup 
-    command: 'borg init --encryption=repokey borg@server:/var/backup/'
+      mode: 0700 
   
+  - name: Borg ssh keypair
+    copy:
+      src: id_ssh_rsa
+      dest: /root/.ssh/id_rsa        
+      owner: root
+      group: root
+      mode: 0600
   - name: 
-    command: ' borg create --stats --list borg@server:/var/backup/::"etc-{now:%Y-%m-%d_%H:%M:%S}" /etc'
+    shell: 'ssh-keyscan -H 192.168.56.160 >> /root/.ssh/known_hosts'
+  # - name: 
+  #   shell: 'ssh-keyscan -H 192.168.56.160 >> /home/vagrant/.ssh/known_hosts'
+  
+  - name: Initialisation backup 
+    shell: 'borg init --encryption=none borg@192.168.56.160:/var/backup/'
+     
+  - name: Create unit backup
+    copy:
+     dest:  /etc/systemd/system/borg-backup.service
+     content: |
+      [Unit]
+      Description=Borg Backup
+
+      [Service]
+      Type=oneshot
+
+      # Парольная фраза
+      Environment="BORG_PASSPHRASE="
+      # Репозиторий
+      Environment=REPO=borg@192.168.56.160:/var/backup/
+      # Что бэкапим
+      Environment=BACKUP_TARGET=/etc
+
+      # Создание бэкапа
+      ExecStart=/bin/borg create --stats ${REPO}::etc-{now:%%Y-%%m-%%d_%%H:%%M:%%S} ${BACKUP_TARGET}
+
+      # Проверка бэкапа
+      ExecStart=/bin/borg check ${REPO}
+
+      # Очистка старых бэкапов
+      ExecStart=/bin/borg prune --keep-daily  90 --keep-monthly 12 --keep-yearly  1   ${REPO}
+    notify: BORG SERVICE
+
+  - name: Create unit timer
+    copy:
+     dest:  /etc/systemd/system/borg-backup.timer
+     content: |
+      [Unit]
+      Description=Borg Backup
+
+      [Timer]
+      OnUnitActiveSec=5min
+
+      [Install]
+      WantedBy=timers.target
+    notify: BORG SERVICE
+
+
