@@ -1,0 +1,55 @@
+- name: Configure client
+  hosts: all
+
+  handlers: 
+
+    - name: RESTART SERVICE SSHD
+      service:
+        name: sshd 
+        state: reloaded
+  tasks:
+  - name: install soft
+    yum: 
+      name: epel-release, vim 
+  - name: CLOSE ACCEPT SSH ROOT
+    lineinfile:
+      path: /etc/ssh/sshd_config
+      regexp: '^\s*.?\s*PermitRootLogin'
+      line: 'PermitRootLogin yes'
+    notify: RESTART SERVICE SSHD  
+
+  - name: install soft
+    yum:    
+     name: borgbackup 
+
+  - name: CREATE IB USER
+    user:
+      name: borg
+      state: present
+      append: yes
+      groups: sshd
+
+  - name: Borg ssh directory
+    file:
+      dest: /home/borg/.ssh/authorized_keys
+      owner: borg
+      group: borg
+      state: directory
+      mode: 0700
+
+  - name: generate keypair 
+    ansible.builtin.openssh_keypair:
+      path: /home/borg/.ssh/
+      owner: borg
+      group: borg 
+
+  - name: COPY /home/borg/.ssh/authorized_keys
+    ansible.builtin.fetch:
+      src: /home/borg/.ssh/authorized_keys
+      dest: ./  
+
+  - name: Initialisation backup 
+    command: 'borg init --encryption=repokey borg@server:/var/backup/'
+  
+  - name: 
+    command: ' borg create --stats --list borg@server:/var/backup/::"etc-{now:%Y-%m-%d_%H:%M:%S}" /etc'

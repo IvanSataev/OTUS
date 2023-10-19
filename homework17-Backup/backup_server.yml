@@ -1,0 +1,66 @@
+- name: Configure server
+  hosts: all
+  handlers: 
+    - name: RESTART SERVICE ZABBIX
+      service:
+        name: zabbix-agent
+        state: restarted
+      ignore_errors: yes
+
+    - name: RESTART SERVICE SSHD
+      service:
+        name: sshd 
+        state: reloaded
+
+  tasks:
+  - name: install soft
+    yum: 
+      name: epel-release, vim 
+
+  - name: install soft
+    yum:    
+     name: borgbackup 
+
+  - name: CREATE IB USER
+    user:
+      name: borg
+      state: present
+      append: yes
+      groups: sshd
+
+  - name: CLOSE ACCEPT SSH ROOT
+    lineinfile:
+      path: /etc/ssh/sshd_config
+      regexp: '^\s*.?\s*PermitRootLogin'
+      line: 'PermitRootLogin yes'
+    notify: RESTART SERVICE SSHD  
+    
+  - name: 
+    ansible.builtin.file:
+      dest: /var/backup
+      owner: borg
+      group: borg
+      state: directory
+      mode: 0755
+  
+  - name: Borg ssh directory
+    file:
+      dest: /home/borg/.ssh
+      owner: borg
+      group: borg
+      state: directory
+      mode: 0700
+
+  - name: Borg ssh file
+    file:
+      dest: /home/borg/.ssh/authorized_keys
+      owner: borg
+      group: borg
+      state: touch
+      mode: 0600
+
+
+
+
+
+            
