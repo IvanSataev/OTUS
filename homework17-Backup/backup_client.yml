@@ -12,11 +12,17 @@
         name: borg-backup.timer 
         state: restarted
         enabled: yes   
+    
+    - name: RSYSLOG RESTART 
+      service:
+        name: rsyslog 
+        state: restarted
+        enabled: yes   
 
   tasks:
   - name: Install soft
     yum: 
-      name: epel-release, vim 
+      name: epel-release, vim, rsyslog 
       
   - name: Open ssh perminition 
     lineinfile:
@@ -51,12 +57,32 @@
       owner: root
       group: root
       mode: 0600
+
+  - name: Borg log file
+    file:  
+      dest: /var/log/borg.log       
+      owner: root
+      group: root
+      state: touch
+      mode: 0666  
+
+  - name: Borg rsyslog conf
+    copy:
+      dest: /etc/rsyslog.d/borg.conf
+      content: |
+        if $programname == 'borg' then /var/log/borg.log
+        & stop
+      owner: root
+      group: root
+      mode: 0644
+    notify: RSYSLOG RESTART  
+
   - name: 
     shell: 'ssh-keyscan -H 192.168.56.160 >> /root/.ssh/known_hosts'
   
   - name: Initialisation backup 
     shell: 'borg init --encryption=none borg@192.168.56.160:/var/backup/'
-     
+    #ignore_errors: yes 
   - name: Create unit backup
     copy:
      dest:  /etc/systemd/system/borg-backup.service
@@ -75,8 +101,7 @@
       Environment=BACKUP_TARGET=/etc
 
       # Создание бэкапа
-      ExecStart=/bin/borg create --stats ${REPO}::etc-{now:%%Y-%%m-%%d_%%H:%%M:%%S} ${BACKUP_TARGET} >> /var/log/borg.log 2>&1
-
+      ExecStart=/bin/borg create --stats ${REPO}::etc-{now:%%Y-%%m-%%d_%%H:%%M:%%S} ${BACKUP_TARGET}
       # Проверка бэкапа
       ExecStart=/bin/borg check ${REPO}
 
