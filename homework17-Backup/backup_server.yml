@@ -1,5 +1,5 @@
 - name: Configure server
-  hosts: server
+  hosts: all
   handlers: 
     - name: RESTART SERVICE SSHD
       service:

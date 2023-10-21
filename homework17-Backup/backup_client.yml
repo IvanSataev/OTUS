@@ -36,22 +36,6 @@
       append: yes
       groups: sshd
 
-  # - name: Borg ssh directory
-  #   file:
-  #     dest: /home/vagrant/.ssh/
-  #     owner: vagrant
-  #     group: vagrant
-  #     state: directory
-  #     mode: 0700 
-  
-  # - name: Borg ssh keypair
-  #   copy:
-  #     src: id_ssh_rsa
-  #     dest: /home/vagrant/.ssh/id_rsa        
-  #     owner: vagrant
-  #     group: vagrant
-  #     mode: 0600
-
   - name: Borg ssh directory
     file:
       dest: /root/.ssh/
@@ -69,8 +53,6 @@
       mode: 0600
   - name: 
     shell: 'ssh-keyscan -H 192.168.56.160 >> /root/.ssh/known_hosts'
-  # - name: 
-  #   shell: 'ssh-keyscan -H 192.168.56.160 >> /home/vagrant/.ssh/known_hosts'
   
   - name: Initialisation backup 
     shell: 'borg init --encryption=none borg@192.168.56.160:/var/backup/'
@@ -93,7 +75,7 @@
       Environment=BACKUP_TARGET=/etc
 
       # Создание бэкапа
-      ExecStart=/bin/borg create --stats ${REPO}::etc-{now:%%Y-%%m-%%d_%%H:%%M:%%S} ${BACKUP_TARGET}
+      ExecStart=/bin/borg create --stats ${REPO}::etc-{now:%%Y-%%m-%%d_%%H:%%M:%%S} ${BACKUP_TARGET} >> /var/log/borg.log 2>&1
 
       # Проверка бэкапа
       ExecStart=/bin/borg check ${REPO}
