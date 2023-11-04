@@ -1,0 +1,143 @@
+---
+- name: Loging configure
+  hosts: all
+  handlers: 
+    - name: SSHD RELOAD  
+      service:
+        name: sshd 
+        state: reloaded
+
+    - name: CHRONYD RESTART
+      service:
+        name: chronyd 
+        state: restarted
+    
+    - name: RSYSLOG RESTART 
+      service:
+        name: rsyslog 
+        state: restarted
+        enabled: yes   
+
+    - name: NGINX RESTART 
+      service:
+        name: nginx 
+        state: restarted 
+
+    - name: AUDITD RESTART 
+      service:
+        name: auditd 
+        state: restarted      
+  tasks:
+  - name: Open ssh perminition 
+    lineinfile:
+      path: /etc/ssh/sshd_config
+      regexp: '^\s*.?\s*PasswordAuthentication'
+      line: 'PasswordAuthentication yes'
+    notify: SSHD RELOAD 
+    tags: log, web
+
+  - name: Chronyd configure
+    timezone:
+      name: 'Europe/Moscow'
+    notify: CHRONYD RESTART  
+    tags: log, web
+
+  - name: Install soft
+    yum: 
+      name: epel-release, vim, rsyslog, audispd-plugins 
+    tags: log, web
+
+  - name: Installation nginx
+    yum:
+      name: nginx
+      state: latest
+    tags: web
+
+  - name: nginx enabled
+    service:
+      name: nginx 
+      state: restarted
+      enabled: yes  
+    tags: web        
+  # - name: Firewalld port Open
+  #   ansible.builtin.firewalld:
+  #     port: 514/tcp, 514/udp, 80/tcp
+  #     state:  enabled
+  #     permanent: yes
+  #     immediate: yes  
+  #   tags: log, web
+
+  - name: Configuration rsyslog   
+    blockinfile:
+      path: /etc/rsyslog.conf
+      block: |
+        # Provides UDP syslog reception
+        $ModLoad imudp
+        $UDPServerRun 514
+
+        # Provides TCP syslog reception
+        $ModLoad imtcp
+        $InputTCPServerRun 514
+
+        $template RemoteLogs, "/var/log/rsyslog/%HOSTNAME%/%PROGRAMNAME%.log"
+        *.* ?RemoteLogs
+        & ~
+    notify: RSYSLOG RESTART
+    tags: log    
+
+  - name: Configuration nginx error_log
+    lineinfile:
+      path: /etc/nginx/nginx.conf
+      firstmatch: yes
+      regexp: '^\s*.?\s*error_log'
+      line: |
+        error_log /var/log/nginx/error.log;
+        error_log syslog:server=192.168.56.15:514,tag=nginx_error;  
+    notify: NGINX RESTART 
+    tags: web
+
+  - name: Configuration nginx access_log
+    lineinfile:
+      path: /etc/nginx/nginx.conf
+      firstmatch: yes
+      regexp: '^\s*.?\s*access_log'
+      line: |
+        access_log  /var/log/nginx/access.log main;
+        access_log syslog:server=192.168.56.15:514,tag=nginx_access,severity=info combined; 
+    notify: NGINX RESTART 
+    tags: web
+
+  - name: Configuration nginx auditd
+    lineinfile:
+      path: /etc/audit/rules.d/audit.rules
+      regexp: ''
+      insertafter: EOF
+      line: |
+         -w /etc/nginx/nginx.conf -p wa -k nginx_conf 
+         -w /etc/nginx/default.d/ -p wa -k nginx_conf
+    notify: AUDITD RESTART 
+    tags: web
+
+  - name: Configuration auditd.conf
+    lineinfile:
+      path: /etc/audit/auditd.conf
+      regexp: '^name_format'
+      line: 'name_format = HOSTNAME'
+    notify: AUDITD RESTART 
+    tags: web 
+
+  - name: Configuration au-remote.conf
+    lineinfile:
+      path: /etc/audisp/plugins.d/au-remote.conf
+      regexp: '^active'
+      line: 'active = yes'
+    notify: AUDITD RESTART 
+    tags: web     
+  - name: Configuration audisp-remote.conf
+    lineinfile:
+      path:  /etc/audisp/audisp-remote.conf
+      regexp: '^remote_server'
+      line: 'remote_server = 192.168.56.15'
+    notify: AUDITD RESTART 
+    tags: web     
+
