@@ -1,6 +1,6 @@
 ---
-- name: Loging configure
-  hosts: all
+- name: install web server
+  hosts: 192.168.56.10
   handlers: 
     - name: SSHD RELOAD  
       service:
@@ -24,11 +24,9 @@
         state: restarted 
 
     - name: AUDITD RESTART 
-      service:
-        name: auditd 
-        state: restarted      
+      shell: "service auditd restart"      
   tasks:
-  - name: Open ssh perminition 
+  - name: Open ssh perminition
     lineinfile:
       path: /etc/ssh/sshd_config
       regexp: '^\s*.?\s*PasswordAuthentication'
@@ -59,31 +57,6 @@
       state: restarted
       enabled: yes  
     tags: web        
-  # - name: Firewalld port Open
-  #   ansible.builtin.firewalld:
-  #     port: 514/tcp, 514/udp, 80/tcp
-  #     state:  enabled
-  #     permanent: yes
-  #     immediate: yes  
-  #   tags: log, web
-
-  - name: Configuration rsyslog   
-    blockinfile:
-      path: /etc/rsyslog.conf
-      block: |
-        # Provides UDP syslog reception
-        $ModLoad imudp
-        $UDPServerRun 514
-
-        # Provides TCP syslog reception
-        $ModLoad imtcp
-        $InputTCPServerRun 514
-
-        $template RemoteLogs, "/var/log/rsyslog/%HOSTNAME%/%PROGRAMNAME%.log"
-        *.* ?RemoteLogs
-        & ~
-    notify: RSYSLOG RESTART
-    tags: log    
 
   - name: Configuration nginx error_log
     lineinfile:
@@ -133,11 +106,78 @@
       line: 'active = yes'
     notify: AUDITD RESTART 
     tags: web     
+
   - name: Configuration audisp-remote.conf
     lineinfile:
       path:  /etc/audisp/audisp-remote.conf
       regexp: '^remote_server'
       line: 'remote_server = 192.168.56.15'
     notify: AUDITD RESTART 
-    tags: web     
+    tags: web 
 
+- name: install log server
+  hosts: 192.168.56.10
+  handlers: 
+    - name: SSHD RELOAD  
+      service:
+        name: sshd 
+        state: reloaded
+
+    - name: CHRONYD RESTART
+      service:
+        name: chronyd 
+        state: restarted
+    
+    - name: RSYSLOG RESTART 
+      service:
+        name: rsyslog 
+        state: restarted
+        enabled: yes   
+
+    - name: NGINX RESTART 
+      service:
+        name: nginx 
+        state: restarted 
+
+    - name: AUDITD RESTART 
+      shell: "service auditd restart"    
+  tasks:
+  - name: Open ssh perminition
+    lineinfile:
+      path: /etc/ssh/sshd_config
+      regexp: '^\s*.?\s*PasswordAuthentication'
+      line: 'PasswordAuthentication yes'
+    notify: SSHD RELOAD 
+    tags: log, web
+
+  - name: Chronyd configure
+    timezone:
+      name: 'Europe/Moscow'
+    notify: CHRONYD RESTART  
+    tags: log, web
+
+  - name: Configuration rsyslog   
+    blockinfile:
+      path: /etc/rsyslog.conf
+      block: |
+        # Provides UDP syslog reception
+        $ModLoad imudp
+        $UDPServerRun 514
+
+        # Provides TCP syslog reception
+        $ModLoad imtcp
+        $InputTCPServerRun 514
+
+        $template RemoteLogs, "/var/log/rsyslog/%HOSTNAME%/%PROGRAMNAME%.log"
+        *.* ?RemoteLogs
+        & ~
+    notify: RSYSLOG RESTART
+    tags: log   
+
+  - name: Configuration auditd.conf
+    lineinfile:
+      path:  /etc/audit/auditd.conf
+      regexp: '^#*tcp_listen_port'
+      line: 'tcp_listen_port = 60'
+    notify: AUDITD RESTART 
+    tags: log 
