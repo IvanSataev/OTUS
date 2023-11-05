@@ -1,0 +1,75 @@
+Nov  5 03:44:50 client borg: ------------------------------------------------------------------------------
+Nov  5 03:44:50 client borg: Archive name: etc-2023-11-05_03:44:49
+Nov  5 03:44:50 client borg: Archive fingerprint: 5a102faddd4cacf1c747f6944de515e7d0c5c8425b1db1a9bafb0ac7569fe302
+Nov  5 03:44:50 client borg: Time (start): Sun, 2023-11-05 03:44:49
+Nov  5 03:44:50 client borg: Time (end):   Sun, 2023-11-05 03:44:50
+Nov  5 03:44:50 client borg: Duration: 0.26 seconds
+Nov  5 03:44:50 client borg: Number of files: 1727
+Nov  5 03:44:50 client borg: Utilization of max. archive size: 0%
+Nov  5 03:44:50 client borg: ------------------------------------------------------------------------------
+Nov  5 03:44:50 client borg: Original size      Compressed size    Deduplicated size
+Nov  5 03:44:50 client borg: This archive:               28.44 MB             13.43 MB            126.97 kB
+Nov  5 03:44:50 client borg: All archives:               56.88 MB             26.86 MB             11.92 MB
+Nov  5 03:44:50 client borg: Unique chunks         Total chunks
+Nov  5 03:44:50 client borg: Chunk index:                    1290                 3404
+Nov  5 03:44:50 client borg: ------------------------------------------------------------------------------
+Nov  5 03:49:51 client borg: ------------------------------------------------------------------------------
+Nov  5 03:49:51 client borg: Archive name: etc-2023-11-05_03:49:50
+Nov  5 03:49:51 client borg: Archive fingerprint: 803ab989434f6fc99fbdf5150f129b8906f942a70172ac5c95e73259b46638f8
+Nov  5 03:49:51 client borg: Time (start): Sun, 2023-11-05 03:49:50
+Nov  5 03:49:51 client borg: Time (end):   Sun, 2023-11-05 03:49:51
+Nov  5 03:49:51 client borg: Duration: 0.26 seconds
+Nov  5 03:49:51 client borg: Number of files: 1727
+Nov  5 03:49:51 client borg: Utilization of max. archive size: 0%
+Nov  5 03:49:51 client borg: ------------------------------------------------------------------------------
+Nov  5 03:49:51 client borg: Original size      Compressed size    Deduplicated size
+Nov  5 03:49:51 client borg: This archive:               28.44 MB             13.43 MB                606 B
+Nov  5 03:49:51 client borg: All archives:               56.88 MB             26.86 MB             11.80 MB
+Nov  5 03:49:51 client borg: Unique chunks         Total chunks
+Nov  5 03:49:51 client borg: Chunk index:                    1287                 3406
+Nov  5 03:49:51 client borg: ------------------------------------------------------------------------------
+Nov  5 03:55:51 client borg: ------------------------------------------------------------------------------
+Nov  5 03:55:51 client borg: Archive name: etc-2023-11-05_03:55:50
+Nov  5 03:55:51 client borg: Archive fingerprint: c7b8ed87fc6f2e40aea62c3c763c5cd5135ccb0d4b26b72bd7bf879a7babe337
+Nov  5 03:55:51 client borg: Time (start): Sun, 2023-11-05 03:55:50
+Nov  5 03:55:51 client borg: Time (end):   Sun, 2023-11-05 03:55:51
+Nov  5 03:55:51 client borg: Duration: 0.26 seconds
+Nov  5 03:55:51 client borg: Number of files: 1727
+Nov  5 03:55:51 client borg: Utilization of max. archive size: 0%
+Nov  5 03:55:51 client borg: ------------------------------------------------------------------------------
+Nov  5 03:55:51 client borg: Original size      Compressed size    Deduplicated size
+Nov  5 03:55:51 client borg: This archive:               28.44 MB             13.43 MB                606 B
+Nov  5 03:55:51 client borg: All archives:               56.88 MB             26.86 MB             11.80 MB
+Nov  5 03:55:51 client borg: Unique chunks         Total chunks
+Nov  5 03:55:51 client borg: Chunk index:                    1287                 3406
+Nov  5 03:55:51 client borg: ------------------------------------------------------------------------------
+Nov  5 04:01:02 client borg: ------------------------------------------------------------------------------
+Nov  5 04:01:02 client borg: Archive name: etc-2023-11-05_04:01:01
+Nov  5 04:01:02 client borg: Archive fingerprint: ffa6f90fe689912b7c7217a53eec2357ed56b4ab530d1bd5e65fd3eff37cf368
+Nov  5 04:01:02 client borg: Time (start): Sun, 2023-11-05 04:01:02
+Nov  5 04:01:02 client borg: Time (end):   Sun, 2023-11-05 04:01:02
+Nov  5 04:01:02 client borg: Duration: 0.26 seconds
+Nov  5 04:01:02 client borg: Number of files: 1727
+Nov  5 04:01:02 client borg: Utilization of max. archive size: 0%
+Nov  5 04:01:02 client borg: ------------------------------------------------------------------------------
+Nov  5 04:01:02 client borg: Original size      Compressed size    Deduplicated size
+Nov  5 04:01:02 client borg: This archive:               28.44 MB             13.43 MB             38.72 kB
+Nov  5 04:01:02 client borg: All archives:               56.88 MB             26.86 MB             11.83 MB
+Nov  5 04:01:02 client borg: Unique chunks         Total chunks
+Nov  5 04:01:02 client borg: Chunk index:                    1289                 3406
+Nov  5 04:01:02 client borg: ------------------------------------------------------------------------------
+Nov  5 04:06:51 client borg: ------------------------------------------------------------------------------
+Nov  5 04:06:51 client borg: Archive name: etc-2023-11-05_04:06:50
+Nov  5 04:06:51 client borg: Archive fingerprint: 76ca652307537cf236eb9523d0722256c62c3880011132cdf34661124cb0a124
+Nov  5 04:06:51 client borg: Time (start): Sun, 2023-11-05 04:06:50
+Nov  5 04:06:51 client borg: Time (end):   Sun, 2023-11-05 04:06:51
+Nov  5 04:06:51 client borg: Duration: 0.26 seconds
+Nov  5 04:06:51 client borg: Number of files: 1727
+Nov  5 04:06:51 client borg: Utilization of max. archive size: 0%
+Nov  5 04:06:51 client borg: ------------------------------------------------------------------------------
+Nov  5 04:06:51 client borg: Original size      Compressed size    Deduplicated size
+Nov  5 04:06:51 client borg: This archive:               28.44 MB             13.43 MB                606 B
+Nov  5 04:06:51 client borg: All archives:               56.88 MB             26.86 MB             11.80 MB
+Nov  5 04:06:51 client borg: Unique chunks         Total chunks
+Nov  5 04:06:51 client borg: Chunk index:                    1287                 3406
+Nov  5 04:06:51 client borg: ------------------------------------------------------------------------------
