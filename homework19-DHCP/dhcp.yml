@@ -105,21 +105,13 @@
       content: |
         default menu.c32
         prompt 0
-        #Время счётчика с обратным отсчётом (установлено 15 секунд)
         timeout 150
-        #Параметр использования локального времени
         ONTIME local
-        #Имя «шапки» нашего меню
         menu title OTUS PXE Boot Menu
-              #Описание первой строки
               label 1
-              #Имя, отображаемое в первой строке
               menu label ^ Graph install CentOS 8.4
-              #Адрес ядра, расположенного на TFTP-сервере
               kernel /vmlinuz
-              #Адрес файла initrd, расположенного на TFTP-сервере
               initrd /initrd.img
-              #Получаем адрес по DHCP и указываем адрес веб-сервера
               append ip=enp0s3:dhcp inst.repo=http://10.0.0.20/centos8
               label 2
               menu label ^ Text install CentOS 8.4
@@ -131,8 +123,63 @@
               kernel /vmlinuz
               initrd /initrd.img
               append ip=enp0s3:dhcp inst.repo=http://10.0.0.20/centos8 rescue
+              label 4
+              menu label ^ Auto-install CentOS 8.4
+              #Загрузка данного варианта по умолчанию
+              menu default
+              kernel /vmlinuz
+              initrd /initrd.img
+              append ip=enp0s3:dhcp inst.ks=http://10.0.0.20/centos8/ks.cfg inst.repo=http://10.0.0.20/centos8/
     notify: TFTP RESTART
-  
+  - name: Configure tftp
+    ansible.builtin.copy:
+      dest: /iso/ks.cfg
+      content: |
+        #version=RHEL8
+        #Использование в установке только диска /dev/sda
+        ignoredisk --only-use=sda
+        autopart --type=lvm
+        #Очистка информации о партициях
+        clearpart --all --initlabel --drives=sda
+        #Использование графической установки
+        graphical
+        #Установка английской раскладки клавиатуры
+        keyboard --vckeymap=us --xlayouts='us'
+        #Установка языка системы
+        lang en_US.UTF-8
+        #Добавление репозитория
+        url —url=http://10.0.0.20/centos8/BaseOS/
+        #Сетевые настройки
+        network  --bootproto=dhcp --device=enp0s3 --ipv6=auto --activate
+        network  --bootproto=dhcp --device=enp0s8 --onboot=off --ipv6=auto --activate
+        network  --hostname=otus-pxe-client
+        #Устанвка пароля root-пользователю (Указан SHA-512 hash пароля 123)
+        rootpw --iscrypted $6$sJgo6Hg5zXBwkkI8$btrEoWAb5FxKhajagWR49XM4EAOfO/Dr5bMrLOkGe3KkMYdsh7T3MU5mYwY2TIMJpVKckAwnZFs2ltUJ1abOZ.
+        firstboot --enable
+        #Не настраиваем X Window System
+        skipx
+        #Настраиваем системные службы
+        services --enabled="chronyd"
+        #Указываем часовой пояс
+        timezone Europe/Moscow --isUtc
+        user --groups=wheel --name=val --password=$6$ihX1bMEoO3TxaCiL$OBDSCuY.EpqPmkFmMPVvI3JZlCVRfC4Nw6oUoPG0RGuq2g5BjQBKNboPjM44.0lJGBc7OdWlL17B3qzgHX2v// --iscrypted --gecos="val"
+
+        %packages
+        @^minimal-environment
+        kexec-tools
+
+        %end
+
+        %addon com_redhat_kdump --enable --reserve-mb='auto'
+
+        %end
+
+        %anaconda
+        pwpolicy root --minlen=6 --minquality=1 --notstrict --nochanges --notempty
+        pwpolicy user --minlen=6 --minquality=1 --notstrict --nochanges --emptyok
+        pwpolicy luks --minlen=6 --minquality=1 --notstrict --nochanges --notempty
+        %end
+
   - name: Exctract rpm
     shell: 'rpm2cpio /iso/BaseOS/Packages/syslinux-tftpboot-6.04-5.el8.noarch.rpm | cpio -dimv'
   
