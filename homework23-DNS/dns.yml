@@ -1,0 +1,147 @@
+---
+- hosts: all
+  tasks:
+#Установка пакетов bind, bind-utils и ntp
+  - name: install packages
+    yum:
+      name: bind, bind-utils, ntp, vim
+      state: latest
+      update_cache: true  
+#Копирование файла named.zonetransfer.key на хосты с правами 0644
+#Владелец файла — root, група файла — named
+  - name: copy transferkey to all servers and the client
+    copy: 
+      src: ./file/named.zonetransfer.key 
+      dest: /etc/named.zonetransfer.key 
+      owner: root 
+      group: named 
+      mode: 0644
+
+  - name: start and enable ntpd 
+    service: 
+      name: ntpd
+      state: started
+      enabled: true    
+
+
+#Настройка хоста ns01
+- hosts: ns01
+  tasks: 
+#Копирование конфигурации DNS-сервера
+  - name: copy named.conf
+    copy: 
+      src: ./file/master-named.conf 
+      dest: /etc/named.conf 
+      owner: root 
+      group: named 
+      mode: 0640
+
+#Копирование файлов с настроками зоны. 
+#Будут скопированы все файлы, в имя которых начинается на «named.d»
+  - name: copy zones
+    copy: 
+      src: ./file/{{ item }} 
+      dest: /etc/named/ 
+      owner: root 
+      group: named 
+      mode: 0660
+    loop: 
+      - named.ddns.lab
+      - named.dns.lab
+      - named.dns.lab.client
+      - named.dns.lab.rev
+      - named.newdns.lab
+
+#Копирование файла resolv.conf
+  - name: selinux
+    shell: 'setenforce 0'
+
+  - name: copy resolv.conf to the servers
+    template: 
+      src: ./file/resolv.conf.j2 
+      dest: /etc/resolv.conf 
+      owner: root 
+      group: root
+      mode: 0644
+
+#Изменение прав каталога /etc/named
+#Права 670, владелец — root, группа — named  
+  - name: set /etc/named permissions
+    file: 
+      path: /etc/named 
+      owner: root 
+      group: named 
+      mode: 0670
+
+#Перезапуск службы Named и добавление её в автозагрузку
+  - name: ensure named is running and enabled
+    service: 
+      name: named 
+      state: restarted 
+      enabled: yes
+
+- hosts: ns02
+  tasks: 
+  - name: copy named.conf
+    copy: 
+      src: ./file/slave-named.conf 
+      dest: /etc/named.conf 
+      owner: root 
+      group: named 
+      mode: 0640
+
+  - name: copy resolv.conf to the servers
+    template: 
+      src: ./file/resolv.conf.j2 
+      dest: /etc/resolv.conf 
+      owner: root 
+      group: root
+      mode: 0644
+      
+  - name: selinux
+    shell: 'setenforce 0'
+
+  - name: set /etc/named permissions
+    file: 
+      path: /etc/named 
+      owner: root 
+      group: named 
+      mode: 0670
+
+
+  - name: ensure named is running and enabled
+    service: 
+      name: named 
+      state: restarted 
+      enabled: yes
+    
+
+
+#Так как мы добавили ещё одну виртуальную машину (client2), нам потребуется её настроить. Так как настройки будут совпадать с ВМ client, то мы можем просто добавить хост в модуль по настройке клиента: 
+
+- hosts: client,client2
+  tasks:
+  - name: copy resolv.conf to the client
+    copy: 
+      src: ./file/client-resolv.conf 
+      dest: /etc/resolv.conf 
+      owner: root 
+      group: root 
+      mode: 0644
+
+#Копирование конфигруационного файла rndc
+  - name: copy rndc conf file
+    copy: 
+      src: ./file/rndc.conf 
+      dest: /home/vagrant/rndc.conf 
+      owner: vagrant 
+      group: vagrant 
+      mode: 0644
+#Настройка сообщения при входе на сервер
+  - name: copy motd to the client
+    copy:  
+      src: ./file/client-motd 
+      dest: /etc/motd 
+      owner: root 
+      group: root 
+      mode: 0644
