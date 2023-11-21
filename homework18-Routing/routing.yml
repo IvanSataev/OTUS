@@ -1,0 +1,54 @@
+- name: Routing
+  hosts: all
+  tasks: 
+  - name: Install soft
+    apt:
+      name: traceroute
+      state: present
+
+  - name: disable default route
+    ansible.builtin.lineinfile:
+      dest: /etc/netplan/00-installer-config.yaml
+      regexp: 'dhcp4: true'
+      insertafter: yes
+      line: |
+            dhcp4-overrides:
+              use-routes: false
+    when: (ansible_hostname != "inetRouter") 
+
+  - name: Set up NAT on inetRouter
+    template: 
+      src: "{{ item.src }}"
+      dest: "{{ item.dest }}"
+      owner: root
+      group: root
+      mode: "{{ item.mode }}"
+    with_items:
+      - { src: "template/iptables_rules.ipv4", dest: "/etc/iptables_rules.ipv4", mode: "0644" }
+      - { src: "template/iptables_restore", dest: "/etc/network/if-pre-up.d/iptables", mode: "0755" }
+    when: (ansible_hostname == "inetRouter")
+  
+  
+  # - name: add default gateway for centralRouter
+  #   ansible.builtin.lineinfile:
+  #     dest: /etc/netplan/50-vagrant.yaml
+  #     regexp: 
+  #     line: |
+  #           routes:
+  #           - to: 0.0.0.0/0
+  #             via: 192.168.2.129
+
+
+  # - name: restart all hosts
+  #   reboot:
+  #      reboot_timeout: 600
+
+- name: Forwarding for routers
+  hosts: inetRouter, centralRouter, office1Router, office2Router
+  tasks:
+  - name: set up forward packages across routers
+    sysctl:
+      name: net.ipv4.conf.all.forwarding
+      value: '1'
+      state: present
+  
