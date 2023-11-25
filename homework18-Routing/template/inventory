@@ -1,0 +1,7 @@
+inetRouter ansible_host=92.168.56.10
+centralRouter ansible_host=92.168.56.11
+centralServer ansible_host=92.168.56.12
+office1Router ansible_host=92.168.56.20
+office1Server ansible_host=92.168.56.21
+office2Router ansible_host=192.168.56.30
+office2Server ansible_host=192.168.56.31
