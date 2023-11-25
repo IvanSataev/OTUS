@@ -94,14 +94,17 @@ Vagrant.configure("2") do |config|
         v.cpus = 1
        end
 
-      # if boxconfig[:vm_name] == "office2Server"
-      #  box.vm.provision "ansible" do |ansible|
-      #   ansible.playbook = "ansible/provision.yml"
-      #   ansible.inventory_path = "ansible/hosts"
-      #   ansible.host_key_checking = "false"
-      #   ansible.limit = "all"
-      #  end
-      # end
+       if boxconfig[:vm_name] == "office2Server"
+       box.vm.provision "ansible" do |ansible|
+        ansible.playbook = "routing.yml"
+        ansible.inventory_path = "template/inventory"
+        ansible.host_key_checking = "false"
+        ansible.limit = "all"
+        ansible.become_user = "root" 
+        ansible.compatibility_mode = "2.0"
+        ansible.become = true
+       end
+      end
 
       boxconfig[:net].each do |ipconf|
         box.vm.network("private_network", ip: ipconf[0], adapter: ipconf[1], netmask: ipconf[2], virtualbox__intnet: ipconf[3])

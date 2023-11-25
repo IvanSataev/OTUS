@@ -30,7 +30,7 @@
   
   - name: add default gateway for centralRouter
     template: 
-      src: "template/50-vagrant_{{ansible_hostname}}.yml"
+      src: "template/50-vagrant_{{ansible_hostname}}.yaml"
       dest: /etc/netplan/50-vagrant.yaml
       owner: root
       group: root
