@@ -4,12 +4,12 @@
 Vagrant.configure(2) do |config|
     config.vm.box = "centos/7"
   
-    config.vm.provision "ansible" do |ansible|
-      ansible.playbook = "dns.yml"
-      ansible.become_user = "root" 
-      ansible.compatibility_mode = "2.0"
-      ansible.become = true
-    end
+   config.vm.provision "ansible" do |ansible|
+     ansible.playbook = "dns.yml"
+     ansible.become_user = "root" 
+     ansible.compatibility_mode = "2.0"
+     ansible.become = true
+   end
   
   
     config.vm.provider "virtualbox" do |v|
