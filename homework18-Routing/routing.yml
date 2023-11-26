@@ -1,3 +1,12 @@
+- name: Forwarding for routers
+  hosts: inetRouter, centralRouter, office1Router, office2Router
+  tasks:
+  - name: set up forward packages across routers
+    sysctl:
+      name: net.ipv4.conf.all.forwarding
+      value: '1'
+      state: present
+      
 - name: Routing
   hosts: all
   tasks: 
@@ -45,16 +54,9 @@
       mode: 0644
 
 
-  # - name: restart all hosts
-  #   reboot:
-  #      reboot_timeout: 600
+  - name: restart all hosts
+    reboot:
+       reboot_timeout: 600
 
-- name: Forwarding for routers
-  hosts: inetRouter, centralRouter, office1Router, office2Router
-  tasks:
-  - name: set up forward packages across routers
-    sysctl:
-      name: net.ipv4.conf.all.forwarding
-      value: '1'
-      state: present
+
   
