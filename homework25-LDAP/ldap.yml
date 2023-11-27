@@ -1,0 +1,63 @@
+- name: Configure server 
+  hosts: all
+  tasks:
+
+  - name: turnoff selinux
+    ansible.builtin.selinux:
+      state: disabled
+
+  - name: stop firewalld
+    ansible.builtin.service:
+      name: firewalld
+      state: stopped
+      enabled: false
+
+  - name: CHANGE HOSTNAME
+    copy:
+      dest: "/etc/hostname"
+      content: "{{ inventory_hostname_short }}"
+
+  - name: install module ipa-server
+    yum:
+      name: vim, chrony, @idm:DL1, ipa-server
+      state:  present
+    when: (ansible_hostname == "server.otus.lan")
+
+  - name: install module ipa-client
+    yum:
+      name: vim, chrony, freeipa-client
+      state: present
+      update_cache: true
+    when: (ansible_hostname != "server.otus.lan") 
+
+  - name: Set up timezone
+    timezone:
+      name: "Europe/Moscow"
+
+  - name: enable chrony
+    service:
+      name: chronyd
+      state: restarted
+      enabled: true
+
+  - name: set dns
+    ansible.builtin.copy:
+      dest: /etc/hosts
+      content: |
+        127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+        ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+        192.168.57.10 ipa.otus.lan ipa
+      owner: root
+      group: root
+      mode: 0644
+
+  - name: reboot
+    reboot:
+
+  - name: add host to ipa-server
+    shell: echo -e "yes\nyes" | ipa-client-install --mkhomedir --domain=OTUS.LAN --server=ipa.otus.lan --no-ntp -p admin -w otus2022      
+    when: (ansible_hostname != "server.otus.lan") 
+
+  
+
+      
