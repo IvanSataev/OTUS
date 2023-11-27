@@ -1,7 +1,6 @@
 - name: Configure server 
   hosts: all
   tasks:
-
   - name: turnoff selinux
     ansible.builtin.selinux:
       state: disabled
@@ -13,22 +12,22 @@
       enabled: false
 
   - name: CHANGE HOSTNAME
-    copy:
-      dest: "/etc/hostname"
-      content: "{{ inventory_hostname_short }}"
-
+    hostname:
+      name: "{{ inventory_hostname }}"
+      use: systemd
+      
   - name: install module ipa-server
     yum:
-      name: vim, chrony, @idm:DL1, ipa-server
-      state:  present
-    when: (ansible_hostname == "server.otus.lan")
+      name: vim, chrony, @idm:DL1, ipa-server, nss
+      state:  latest
+    when: ("ipa" in ansible_hostname)
 
   - name: install module ipa-client
     yum:
       name: vim, chrony, freeipa-client
       state: present
       update_cache: true
-    when: (ansible_hostname != "server.otus.lan") 
+    when: (not "ipa" in ansible_hostname)
 
   - name: Set up timezone
     timezone:
@@ -39,8 +38,21 @@
       name: chronyd
       state: restarted
       enabled: true
+      
+  - name: set dns server
+    ansible.builtin.copy:
+      dest: /etc/hosts
+      content: |
+        127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+        ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+        127.0.1.1 ipa.otus.lan ipa
+        192.168.57.10 ipa.otus.lan ipa
+      owner: root
+      group: root
+      mode: 0644
+    when: ("ipa" in ansible_hostname)
 
-  - name: set dns
+  - name: set dns client
     ansible.builtin.copy:
       dest: /etc/hosts
       content: |
@@ -50,13 +62,14 @@
       owner: root
       group: root
       mode: 0644
-
-  - name: reboot
-    reboot:
+    when: (not "ipa" in ansible_hostname)  
+    
+  # - name: reboot
+  #   reboot:
 
   - name: add host to ipa-server
     shell: echo -e "yes\nyes" | ipa-client-install --mkhomedir --domain=OTUS.LAN --server=ipa.otus.lan --no-ntp -p admin -w otus2022      
-    when: (ansible_hostname != "server.otus.lan") 
+    when:  (not "ipa" in ansible_hostname)
 
   
 
