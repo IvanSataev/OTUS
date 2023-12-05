@@ -1,0 +1,18 @@
+#Начало файла provision.yml
+- name: OSPF
+  #Указываем имя хоста или группу, которые будем настраивать
+  hosts: all
+  #Параметр выполнения модулей от root-пользователя
+  become: yes
+  #Указание файла с дополнителыми переменными (понадобится при добавлении темплейтов)
+  tasks:
+  # Обновление пакетов и установка vim, traceroute, tcpdump, net-tools
+  - name: install base tools
+    yum:
+      name:
+        - vim
+        - traceroute
+        - tcpdump
+        - net-tools
+      state: present
+      update_cache: true
