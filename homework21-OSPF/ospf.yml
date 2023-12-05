@@ -2,8 +2,14 @@
 - name: OSPF
   #Указываем имя хоста или группу, которые будем настраивать
   hosts: all
-  #Параметр выполнения модулей от root-пользователя
-  become: yes
+  vars: 
+    - symmetric: true
+  handlers:
+  - name: RESTART FRR
+    ansible.builtin.service:
+      name: frr
+      state: restarted
+      enabled: yes
   #Указание файла с дополнителыми переменными (понадобится при добавлении темплейтов)
   tasks:
   # Обновление пакетов и установка vim, traceroute, tcpdump, net-tools
@@ -14,5 +20,66 @@
         - traceroute
         - tcpdump
         - net-tools
+        - https://github.com/FRRouting/frr/releases/download/frr-5.0.1/frr-5.0.1-2018070501.el7.centos.x86_64.rpm
       state: present
       update_cache: true
+
+  - name: set up forward packages across routers
+    sysctl:
+      name: net.ipv4.conf.all.forwarding
+      value: '1'
+      state: present
+
+  - name: replace configure
+    ansible.builtin.replace:
+      path: /etc/frr/daemons
+      regexp: "{{item.reg}}"
+      replace: "{{item.rep}}"
+    with_items:
+        - {reg: 'zebra=no', rep: 'zebra=yes'}
+        - {reg: 'ospfd=no', rep: 'ospfd=yes'}
+
+  - name: template frr.conf
+    ansible.builtin.template:
+      src: "template/frr_{{ansible_hostname}}.conf"
+      dest: /etc/frr/frr.conf
+      owner: frr
+      group: frr
+      mode: 0640
+    notify: RESTART FRR  
+
+  - name: stop firewalld
+    ansible.builtin.service:
+      name: firewalld
+      state: stopped
+
+###asymmetric and symmetric  routing    
+  - name: set up forward packages across routers
+    sysctl:
+      name: net.ipv4.conf.all.rp_filter
+      value: '0'
+      state: present
+
+  - name: router 1 cost 1000
+    ansible.builtin.replace:
+      path: /etc/frr/frr.conf
+      regexp: '!ip ospf cost 1000'
+      replace: 'ip ospf cost 1000'
+    when: (ansible_hostname == "router1")  
+    notify: RESTART FRR 
+
+  - name: router 2 cost 1000 for symmetric
+    ansible.builtin.replace:
+      path: /etc/frr/frr.conf
+      regexp: '!ip ospf cost 1000'
+      replace: 'ip ospf cost 1000'
+    when: (ansible_hostname == "router2" and symmetric)  
+    notify: RESTART FRR 
+
+  - name: router 2 cost 450 for asymmetric
+    ansible.builtin.replace:
+      path: /etc/frr/frr.conf
+      regexp: 'ip ospf cost 1000'
+      replace: 'ip ospf cost 450'
+    when: (ansible_hostname == "router2" and not symmetric)  
+    notify: RESTART FRR  
