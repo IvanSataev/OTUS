@@ -1,6 +1,6 @@
 ---
 - name: configure VPN
-  hosts: all
+  hosts: server
   handlers:
   - name: RESTART OPENVPN 
     ansible.builtin.service:
@@ -16,9 +16,110 @@
 
   - name: install soft
     yum:
-      name: openvpn, iperf
+      name: openvpn, iperf, vim, easy-rsa
       state: present
       update_cache: yes 
   
-  - name: selinux
-    shell: 'setenforce 0'   
+  - name: shell command
+    shell: '{{item}}'
+    loop:
+    -  'setenforce 0'
+    -  'cd /etc/openvpn/ &&  /usr/share/easy-rsa/3.0.8/easyrsa init-pki'
+    -  'cd /etc/openvpn/ &&  echo "rasvpn" | /usr/share/easy-rsa/3.0.8/easyrsa build-ca nopass'
+    -  'cd /etc/openvpn/ &&  echo "rasvpn" | /usr/share/easy-rsa/3.0.8/easyrsa gen-req server nopass'
+    -  'cd /etc/openvpn/ &&  echo "yes" | /usr/share/easy-rsa/3.0.8/easyrsa sign-req server server'
+    -  'cd /etc/openvpn/ &&  /usr/share/easy-rsa/3.0.8/easyrsa gen-dh'
+    -  'cd /etc/openvpn/ &&  openvpn --genkey --secret ca.key'
+    -  'cd /etc/openvpn/ &&  echo "client" | /usr/share/easy-rsa/3/easyrsa gen-req client nopass'
+    -  'cd /etc/openvpn/ &&  echo "yes" | /usr/share/easy-rsa/3/easyrsa sign-req client client'
+
+  - name: create server.conf
+    copy:
+      dest: /etc/openvpn/server.conf
+      mode: 0644  
+      group: root
+      owner: root
+      content: |
+        port 1207
+        proto udp
+        dev tun
+        ca /etc/openvpn/pki/ca.crt
+        cert /etc/openvpn/pki/issued/server.crt
+        key /etc/openvpn/pki/private/server.key
+        dh /etc/openvpn/pki/dh.pem
+        server 10.10.10.0 255.255.255.0
+        ifconfig-pool-persist ipp.txt
+        client-to-client
+        client-config-dir /etc/openvpn/client
+        keepalive 10 120
+        comp-lzo
+        persist-key
+        persist-tun
+        status /var/log/openvpn-status.log
+        log /var/log/openvpn.log
+        verb 3
+
+  - name: create service
+    copy:
+      dest: /etc/systemd/system/openvpn@.{{ansible_hostname}}
+      mode: 0644  
+      group: root
+      owner: root
+      content: |    
+        [Unit]
+        Description=OpenVPN Tunneling Application On %I
+        After=network.target
+
+        [Service]
+        Type=notify
+        PrivateTmp=true
+        ExecStart=/usr/sbin/openvpn --cd /etc/openvpn/ --config %i.conf
+
+        [Install]
+        WantedBy=multi-user.target  
+    notify: RESTART OPENVPN    
+        
+  - name: fitch key 
+    fetch:
+      src: /etc/openvpn/pki/{{item}}
+      dest: ./
+      flat: yes
+    loop:
+     - ca.crt
+     - issued/client.crt
+     - private/client.key
+
+  - name: create client.conf
+    copy:
+      dest: /etc/openvpn/client/client
+      mode: 0644  
+      group: root
+      owner: root
+      content: 'iroute 10.10.10.0 255.255.255.0'
+
+  - name: create client.conf
+    copy:
+      dest: /etc/openvpn/client.conf
+      mode: 0644  
+      group: root
+      owner: root
+      content: |      
+        dev tun
+        proto udp
+        remote 192.168.56.10 1207
+        client
+        resolv-retry infinite
+        remote-cert-tls server
+        ca ./ca.crt
+        cert ./client.crt
+        key ./client.key
+        route 192.168.56.0 255.255.255.0
+        persist-key
+        persist-tun
+        comp-lzo
+        verb 3
+  - name: fitch client.conf 
+    fetch:
+      src: /etc/openvpn/client.conf
+      dest: client.conf
+      flat: yes     

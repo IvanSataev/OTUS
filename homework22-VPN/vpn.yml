@@ -16,7 +16,7 @@
 
   - name: install soft
     yum:
-      name: openvpn, iperf
+      name: openvpn, iperf, vim
       state: present
       update_cache: yes 
   
