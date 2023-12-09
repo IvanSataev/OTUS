@@ -1,0 +1,24 @@
+---
+- name: configure VPN
+  hosts: all
+  handlers:
+  - name: RESTART OPENVPN 
+    ansible.builtin.service:
+      name: openvpn@{{ansible_hostname}}
+      state: restarted
+      enabled: yes       
+  tasks:
+  - name: install release
+    yum:
+      name: epel-release
+      state: present
+      update_cache: yes
+
+  - name: install soft
+    yum:
+      name: openvpn, iperf
+      state: present
+      update_cache: yes 
+  
+  - name: selinux
+    shell: 'setenforce 0'   
