@@ -1,0 +1,59 @@
+- name: Forwarding for routers
+  hosts: inetRouter, inetRouter2, centralRouter
+  tasks:
+  - name: set up forward packages across routers
+    sysctl:
+      name: net.ipv4.conf.all.forwarding
+      value: '1'
+      state: present
+
+- name: Routing
+  hosts: all
+  tasks: 
+  - name: turnoff validate cert for repo
+    copy:
+      dest: /etc/apt/apt.conf.d/99verify-peer.conf
+      content: "Acquire { https::Verify-Peer false }"
+      owner: root
+      group: root
+      mode: 0644
+
+  - name: Install soft
+    apt:
+      name: traceroute
+      state: present
+      force: yes
+
+  - name: disable default route
+    ansible.builtin.template:
+      dest: /etc/netplan/00-installer-config.yaml
+      src: template/00-installer-config.yaml 
+      owner: root
+      group: root
+      mode: 0644
+    when: (ansible_hostname != "inetRouter") 
+
+  - name: Set up NAT on inetRouter
+    template: 
+      src: "{{ item.src }}"
+      dest: "{{ item.dest }}"
+      owner: root
+      group: root
+      mode: "{{ item.mode }}"
+    with_items:
+      - { src: "template/iptables_rules.ipv4", dest: "/etc/iptables_rules.ipv4", mode: "0644" }
+      - { src: "template/iptables_restore", dest: "/etc/network/if-pre-up.d/iptables", mode: "0755" }
+    when: (ansible_hostname == "inetRouter")
+  
+  - name: add default gateway for centralRouter
+    template: 
+      src: "template/50-vagrant_{{ansible_hostname}}.yaml"
+      dest: /etc/netplan/50-vagrant.yaml
+      owner: root
+      group: root
+      mode: 0644
+
+
+  # - name: restart all hosts
+  #   reboot:
+  #      reboot_timeout: 600
