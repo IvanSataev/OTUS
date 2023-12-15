@@ -81,9 +81,9 @@
         done 
     when: (ansible_hostname == "centralRouter")  
 
-  # - name: restart all hosts
-  #   reboot:
-  #      reboot_timeout: 600
+  - name: restart all hosts
+    reboot:
+       reboot_timeout: 600
 
 - name: nginx Forwarding
   hosts: centralServer
