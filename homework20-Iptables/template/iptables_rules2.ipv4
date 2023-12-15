@@ -1,0 +1,8 @@
+*nat
+:PREROUTING ACCEPT [1:44]
+:INPUT ACCEPT [1:44]
+:OUTPUT ACCEPT [0:0]
+:POSTROUTING ACCEPT [0:0]
+-A PREROUTING -i eth0 -p tcp -m tcp --dport 8080 -j DNAT --to-destination 192.168.0.2:80
+-A POSTROUTING --destination 192.168.0.2/28 -j SNAT --to-source 192.168.0.3
+COMMIT

@@ -44,6 +44,18 @@
       - { src: "template/iptables_rules.ipv4", dest: "/etc/iptables_rules.ipv4", mode: "0644" }
       - { src: "template/iptables_restore", dest: "/etc/network/if-pre-up.d/iptables", mode: "0755" }
     when: (ansible_hostname == "inetRouter")
+
+  - name: Set up SNAT,DNAT on inetRouter2
+    template: 
+      src: "{{ item.src }}"
+      dest: "{{ item.dest }}"
+      owner: root
+      group: root
+      mode: "{{ item.mode }}"
+    with_items:
+      - { src: "template/iptables_rules2.ipv4", dest: "/etc/iptables_rules.ipv4", mode: "0644" }
+      - { src: "template/iptables_restore", dest: "/etc/network/if-pre-up.d/iptables", mode: "0755" }
+    when: (ansible_hostname == "inetRouter2")
   
   - name: add default gateway for centralRouter
     template: 
@@ -76,8 +88,8 @@
       group: root
       owner: root
       content: |
-        iptables -t nat -A PREROUTING -i eth0 -p tcp -m tcp --dport 8080 -j DNAT --to-destination 192.168.0.2:80
-        iptables -t nat -A POSTROUTING --destination 192.168.0.2/28 -j SNAT --to-source 192.168.0.3
+       
+       
      when: (ansible_hostname == "inetRouter2")    
   # - name: restart all hosts
   #   reboot:
