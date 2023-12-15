@@ -81,26 +81,12 @@
         done 
     when: (ansible_hostname == "centralRouter")  
 
-  - name: DNAT and SNAT inetRouter2
-    ansible.builtin.copy:
-      dest: /root/knock.sh
-      mode: 0644  
-      group: root
-      owner: root
-      content: |
-       
-       
-     when: (ansible_hostname == "inetRouter2")    
   # - name: restart all hosts
   #   reboot:
   #      reboot_timeout: 600
+
 - name: nginx Forwarding
   hosts: centralServer
-  handlers:
-  - name: NGINX restart
-    ansible.builtin.service:
-      name: nginx
-      state: restarted
   tasks:
   - name: turnoff validate cert for repo
     copy:
