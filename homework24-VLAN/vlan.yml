@@ -1,7 +1,11 @@
 - name: Base set up
   #Настройка производится на всех хостах
   hosts: all
-  become: yes
+  handlers:
+  - name: RESTART NETWORK 
+    service:
+      name: NetworkManager
+      state: restarted   
   tasks:
   #Установка приложений на RedHat-based системах
   - name: install softs on CentOS
@@ -14,7 +18,15 @@
       state: present
       update_cache: true
     when: (ansible_os_family == "RedHat")
-  
+
+  - name: turnoff validate cert for repo
+    copy:
+      dest: /etc/apt/apt.conf.d/99verify-peer.conf
+      content: "Acquire { https::Verify-Peer false }"
+      owner: root
+      group: root
+      mode: 0644
+    when: (ansible_os_family == "Debian")  
   #Установка приложений на Debiam-based системах
   - name: install softs on Debian-based
     apt:
@@ -27,16 +39,6 @@
       update_cache: true
     when: (ansible_os_family == "Debian")
 
-- name: set up vlan1
-  #Настройка будет производиться на хостах testClient1 и testServer1
-  hosts: testClient1,testServer1
-  handlers:
-  - name: RESTART NETWORK 
-    service:
-      name: NetworkManager
-      state: restarted   
-  tasks:
-  #Добавление темплейта в файл /etc/sysconfig/network-scripts/ifcfg-vlan1
   - name: set up vlan1
     template:
       src: template/ifcfg-vlan1.j2
@@ -44,28 +46,23 @@
       owner: root
       group: root
       mode: 0644
-    notify: RESTART NETWORK 
-  
-  #Перезапуск службы NetworkManager
-  
+    notify: RESTART NETWORK  
+    when: (ansible_hostname == "testClient1" or ansible_hostname == "testServer1") 
 
-- name: set up vlan2
-  hosts: testClient2,testServer2
-  tasks:
+
   - name: set up vlan2
     template:
-      src: template/50-cloud-init.yaml.j2
+      src: template/ifcfg-vlan2.j2
       dest: /etc/netplan/50-cloud-init.yaml 
       owner: root
       group: root
       mode: 0644
+    when: (ansible_hostname == "testClient2" or ansible_hostname == "testServer2")
 
-  - name: apply set up vlan2
+  - name: apply set up vlan
     shell: netplan apply
+    when: (ansible_hostname == "testClient2" or ansible_hostname == "testServer2")
 
-- name: set up bond0
-  hosts: inetRouter,centralRouter
-  tasks:
   - name: set up ifcfg-bond0
     template:
       src: template/ifcfg-bond0.j2
@@ -73,6 +70,7 @@
       owner: root
       group: root
       mode: 0644
+    when: (ansible_hostname == "inetRouter" or ansible_hostname == "centralRouter")  
   
   - name: set up eth1,eth2
     copy: 
@@ -84,10 +82,11 @@
     with_items:
       - template/ifcfg-eth1
       - template/ifcfg-eth2
-
+    when: (ansible_hostname == "inetRouter" or ansible_hostname == "centralRouter") 
   #Перезагрузка хостов 
   - name: restart hosts for bond0
     reboot:
       reboot_timeout: 3600
+    when: (ansible_hostname == "inetRouter" or ansible_hostname == "centralRouter")   
 
         
