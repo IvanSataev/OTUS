@@ -1,0 +1,61 @@
+- name: configure server
+  hosts: all
+  handlers:
+  - name: RESTART DOCKER
+    ansible.builtin.service:
+      name: docker
+      state: restarted
+      enabled: yes
+
+  - name: RESTART FIREWALLD
+    ansible.builtin.service:
+      name: firewalld
+      state: restarted
+
+  tasks:
+  - name: install soft
+    yum:
+      name: vim, docker-ce, docker-compose, apt-transport-https, ca-certificates, software-properties-common
+      state: present
+      disable_gpg_check: yes
+    notify: RESTART DOCKER    
+
+  - name: copy docker-compose file
+    copy:
+      src: '{{item}}'
+      dest: '{{item}}'
+      owner: root
+      group: root
+    loop:
+      - django
+      - node
+      - nginx
+      - docker-compose.yml
+      - Dockerfiles
+
+  - name: create directory
+    file:
+     name: '{{item}}'
+     dest: ./
+     owner: root
+     group: root
+     mode: 0755
+     state: directory
+    loop: 
+      - wordpress
+      - dbdata 
+
+  - name: selinux stop
+    ansible.builtin.selinux:
+      state:  disabled
+
+  - name: firewall open port
+    ansible.builtin.firewalld:  
+     port: 8081/tcp, 8082/tcp, 8083/tcp
+     state: open
+     permanent: yes
+    notify: RESTART FIREWALLD     
+
+
+  - name: start docker-compose file
+    shell: 'docker-compose up -d'  
