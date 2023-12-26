@@ -18,7 +18,7 @@
 
   - name: install soft
     yum:
-      name: vim, docker-ce,docker-compose-plugin, docker-compose, ca-certificates #, software-properties-common #, apt-transport-https
+      name: vim, docker-ce,docker-compose-plugin, docker-compose, ca-certificates
       state: present
       disable_gpg_check: yes   
 
