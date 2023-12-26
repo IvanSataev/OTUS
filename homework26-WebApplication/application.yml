@@ -1,11 +1,7 @@
 - name: configure server
   hosts: all
   handlers:
-  - name: RESTART DOCKER
-    ansible.builtin.service:
-      name: docker
-      state: restarted
-      enabled: yes
+  
 
   - name: RESTART FIREWALLD
     ansible.builtin.service:
@@ -13,17 +9,29 @@
       state: restarted
 
   tasks:
+  - name: add repo
+    ansible.builtin.yum_repository:
+      name: docker
+      description: docker repositories
+      baseurl: https://download.docker.com/linux/centos/$releasever/$basearch/stable/
+      enabled: yes
+
   - name: install soft
     yum:
-      name: vim, docker-ce, docker-compose, apt-transport-https, ca-certificates, software-properties-common
+      name: vim, docker-ce,docker-compose-plugin, docker-compose, ca-certificates #, software-properties-common #, apt-transport-https
       state: present
-      disable_gpg_check: yes
-    notify: RESTART DOCKER    
+      disable_gpg_check: yes   
+
+  - name: RESTART DOCKER
+    ansible.builtin.service:
+      name: docker
+      state: started
+      enabled: yes
 
   - name: copy docker-compose file
     copy:
       src: '{{item}}'
-      dest: '{{item}}'
+      dest: ./
       owner: root
       group: root
     loop:
@@ -31,7 +39,7 @@
       - node
       - nginx
       - docker-compose.yml
-      - Dockerfiles
+      - .env
 
   - name: create directory
     file:
@@ -51,11 +59,14 @@
 
   - name: firewall open port
     ansible.builtin.firewalld:  
-     port: 8081/tcp, 8082/tcp, 8083/tcp
-     state: open
+     port: "{{item}}"
+     state: enabled
      permanent: yes
+    loop:
+      - 8081/tcp
+      - 8082/tcp
+      - 8083/tcp
     notify: RESTART FIREWALLD     
 
-
   - name: start docker-compose file
-    shell: 'docker-compose up -d'  
+    shell: 'docker compose up -d'  
