@@ -5,25 +5,51 @@
     service:
       name: mysqld
       state: restarted
-      enabled: yes
   tasks:
+  - name: copy rpm
+    ansible.builtin.copy:
+      src: '{{item}}'
+      dest: './{{item}}'
+      owner: root
+      group: root
+      mode: 0644
+    loop:
+      - Percona-Server-shared-compat-57-5.7.44-48.1.el7.x86_64.rpm
+      - Percona-Server-shared-57-5.7.44-48.1.el7.x86_64.rpm
+      - Percona-Server-client-57-5.7.44-48.1.el7.x86_64.rpm
+      - Percona-Server-server-57-5.7.44-48.1.el7.x86_64.rpm  
+      
   - name: install soft
     yum:
       name: 
+      - MySQL-python
       - vim
-      - https://downloads.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.44-48/binary/redhat/7/x86_64/Percona-Server-shared-compat-57-5.7.44-48.1.el7.x86_64.rpm
-      - https://downloads.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.44-48/binary/redhat/7/x86_64/Percona-Server-shared-57-5.7.44-48.1.el7.x86_64.rpm
-      - https://downloads.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.44-48/binary/redhat/7/x86_64/Percona-Server-client-57-5.7.44-48.1.el7.x86_64.rpm
-      - https://downloads.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.44-48/binary/redhat/7/x86_64/Percona-Server-server-57-5.7.44-48.1.el7.x86_64.rpm     
+      - Percona-Server-shared-compat-57-5.7.44-48.1.el7.x86_64.rpm
+      - Percona-Server-shared-57-5.7.44-48.1.el7.x86_64.rpm
+      - Percona-Server-client-57-5.7.44-48.1.el7.x86_64.rpm
+      - Percona-Server-server-57-5.7.44-48.1.el7.x86_64.rpm     
       state: present 
+      update_cache: yes
+      
+  - name: START MYSQL 
+    service:
+      name: mysqld
+      state: started
+      enabled: yes
 
   - name: copy configure
     ansible.builtin.template:
-      src: conf/
-      dest: /etc/my.cfg.d/
+      src: ./conf/{{item}}
+      dest: /etc/my.cnf.d/{{item}}
       owner:  root
       group: root
       mode: 0644
+    loop: 
+      - '01-base.cnf'
+      - '02-max-connections.cnf'
+      - '04-slow-query.cnf'
+      - '03-performance.cnf'
+      - '05-binlog.cnf'
     notify: RESTART MYSQL 
 
   - name: create user
