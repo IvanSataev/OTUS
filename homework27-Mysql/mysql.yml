@@ -1,0 +1,77 @@
+- name: configure replication mysql
+  hosts: all
+  handlers:
+  - name: RESTART MYSQL 
+    service:
+      name: mysqld
+      state: restarted
+      enabled: yes
+  tasks:
+  - name: install soft
+    yum:
+      name: 
+      - vim
+      - https://downloads.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.44-48/binary/redhat/7/x86_64/Percona-Server-shared-compat-57-5.7.44-48.1.el7.x86_64.rpm
+      - https://downloads.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.44-48/binary/redhat/7/x86_64/Percona-Server-shared-57-5.7.44-48.1.el7.x86_64.rpm
+      - https://downloads.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.44-48/binary/redhat/7/x86_64/Percona-Server-client-57-5.7.44-48.1.el7.x86_64.rpm
+      - https://downloads.percona.com/downloads/Percona-Server-5.7/Percona-Server-5.7.44-48/binary/redhat/7/x86_64/Percona-Server-server-57-5.7.44-48.1.el7.x86_64.rpm     
+      state: present 
+
+  - name: copy configure
+    ansible.builtin.template:
+      src: conf/
+      dest: /etc/my.cfg.d/
+      owner:  root
+      group: root
+      mode: 0644
+    notify: RESTART MYSQL 
+
+  - name: create user
+    ansible.builtin.mysql_user:
+      name: repl
+      password: '!OtusLinux2018'
+      host: localhost
+      priv: REPLICATION SLAVE
+      state: present  
+
+- name: configure master
+  hosts: master
+  tasks:
+  - name: create db
+    mysql_db:
+      name: bet
+      state: present 
+
+  - name: copy db bet 
+    ansible.builtin.copy:
+      src: bet.dmp
+      dest: ./
+  
+  - name: import db
+    ansible.builtin.mysql_db:
+      name: bet
+      state: import
+      target: bet.dmp
+
+  - name: backup db
+    shell: 'mysqldump --all-databases --triggers --routines --master-data --ignore-table=bet.events_on_demand --ignore-table=bet.v_same_event -uroot -p > master.sql'  
+  
+  - name: fetch db
+    ansible.builtin.fetch:
+      src: master.sql
+      dest: ./
+      flat: yes
+
+- name: configure slave
+  hosts: slave
+  tasks:
+  - name: copy db bet 
+    ansible.builtin.copy:
+      src: master.sql
+      dest: ./
+
+  # - name: import db
+  #   ansible.builtin.mysql_db:
+  #     name: bet
+  #     state: import
+  #     target: master.sql   
