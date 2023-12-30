@@ -60,26 +60,9 @@
     shell: mysql -uroot -e 'ALTER USER USER() IDENTIFIED BY "Otus2023!";' -p'{{mysql_pswd.stdout_lines[0]}}' --connect-expired-password
     ignore_errors: yes
 
-  - name: create user in db
-    ansible.builtin.mysql_user:
-      name: repl
-      password: '!OtusLinux2018'
-      host: '%' 
-      login_user: root
-      login_password: "Otus2023!"
-      priv: "*.*:REPLICATION SLAVE"
-      state: present  
-
 - name: configure master
   hosts: master
   tasks:
-  - name: create db
-    mysql_db:
-      name: bet
-      state: present
-      login_user: root
-      login_password: "Otus2023!" 
-
   - name: copy db bet 
     ansible.builtin.copy:
       src: bet.dmp
@@ -93,8 +76,20 @@
       login_user: root
       login_password: "Otus2023!"
 
+  - name: create user in db
+    ansible.builtin.mysql_user:
+      name: repl
+      password: '!OtusLinux2018'
+      host: '%' 
+      login_user: root
+      login_password: "Otus2023!"
+      state: present  
+
+  - name: grant repl 
+    shell: mysql -uroot -pOtus2023! -e "GRANT REPLICATION SLAVE ON *.* TO 'repl'@'%' IDENTIFIED BY '!OtusLinux2018';"
+
   - name: backup db
-    shell: 'mysqldump --all-databases --triggers --routines --master-data --set-gtid-purged=off --ignore-table=bet.events_on_demand --ignore-table=bet.v_same_event -uroot -pOtus2023! > master.sql'  
+    shell: 'mysqldump --all-databases --triggers --routines --master-data --ignore-table=bet.events_on_demand --ignore-table=bet.v_same_event -uroot -pOtus2023! > master.sql'  
   
   - name: fetch db
     ansible.builtin.fetch:
@@ -109,19 +104,24 @@
     ansible.builtin.copy:
       src: master.sql
       dest: ./
-  - name:
-    shell: mysql -uroot -pOtus2023! -e "SOURCE /home/vagrant/master.sql"
-  # - name: import db
-  #   ansible.builtin.mysql_db:
-  #     name: bet
-  #     state: import
-  #     target: master.sql
-  #     login_user: root
-  #     login_password: "Otus2023!"
+  - name: import db
+    ansible.builtin.mysql_db:
+      name: bet
+      state: import
+      target: master.sql
+      login_user: root
+      login_password: "Otus2023!"
+    ignore_errors: yes  
 
   - name: setting slave
     shell: mysql -uroot -pOtus2023! -e "CHANGE MASTER TO MASTER_HOST = '192.168.56.150', MASTER_PORT = 3306,MASTER_USER = 'repl', MASTER_PASSWORD = '!OtusLinux2018', MASTER_AUTO_POSITION = 1;"  
 
   - name: setting slave
     shell: mysql -uroot -pOtus2023! -e "START SLAVE;"    
+
+    # stop slave;
+    # set global gtid_mode=ON_PERMISSIVE;
+    # SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 2; 
+    # start slave;
+    # set global gtid_mode=ON;
    
