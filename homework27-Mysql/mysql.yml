@@ -31,12 +31,6 @@
       state: present 
       update_cache: yes
       
-  - name: START MYSQL 
-    service:
-      name: mysqld
-      state: started
-      enabled: yes
-
   - name: copy configure
     ansible.builtin.template:
       src: ./conf/{{item}}
@@ -52,12 +46,28 @@
       - '05-binlog.cnf'
     notify: RESTART MYSQL 
 
-  - name: create user
+  - name: START MYSQL 
+    service:
+      name: mysqld
+      state: started
+      enabled: yes
+
+  - name: get password root mysql
+    shell: "cat /var/log/mysqld.log | grep 'root@localhost:' | awk '{print $11}'"
+    register: mysql_pswd
+
+  - name: set new password sql
+    shell: mysql -uroot -e 'ALTER USER USER() IDENTIFIED BY "Otus2023!";' -p'{{mysql_pswd.stdout_lines[0]}}' --connect-expired-password
+    ignore_errors: yes
+
+  - name: create user in db
     ansible.builtin.mysql_user:
       name: repl
       password: '!OtusLinux2018'
-      host: localhost
-      priv: REPLICATION SLAVE
+      host: '%' 
+      login_user: root
+      login_password: "Otus2023!"
+      priv: "*.*:REPLICATION SLAVE"
       state: present  
 
 - name: configure master
@@ -66,7 +76,9 @@
   - name: create db
     mysql_db:
       name: bet
-      state: present 
+      state: present
+      login_user: root
+      login_password: "Otus2023!" 
 
   - name: copy db bet 
     ansible.builtin.copy:
@@ -78,9 +90,11 @@
       name: bet
       state: import
       target: bet.dmp
+      login_user: root
+      login_password: "Otus2023!"
 
   - name: backup db
-    shell: 'mysqldump --all-databases --triggers --routines --master-data --ignore-table=bet.events_on_demand --ignore-table=bet.v_same_event -uroot -p > master.sql'  
+    shell: 'mysqldump --all-databases --triggers --routines --master-data --set-gtid-purged=off --ignore-table=bet.events_on_demand --ignore-table=bet.v_same_event -uroot -pOtus2023! > master.sql'  
   
   - name: fetch db
     ansible.builtin.fetch:
@@ -95,9 +109,19 @@
     ansible.builtin.copy:
       src: master.sql
       dest: ./
-
+  - name:
+    shell: mysql -uroot -pOtus2023! -e "SOURCE /home/vagrant/master.sql"
   # - name: import db
   #   ansible.builtin.mysql_db:
   #     name: bet
   #     state: import
-  #     target: master.sql   
+  #     target: master.sql
+  #     login_user: root
+  #     login_password: "Otus2023!"
+
+  - name: setting slave
+    shell: mysql -uroot -pOtus2023! -e "CHANGE MASTER TO MASTER_HOST = '192.168.56.150', MASTER_PORT = 3306,MASTER_USER = 'repl', MASTER_PASSWORD = '!OtusLinux2018', MASTER_AUTO_POSITION = 1;"  
+
+  - name: setting slave
+    shell: mysql -uroot -pOtus2023! -e "START SLAVE;"    
+   
