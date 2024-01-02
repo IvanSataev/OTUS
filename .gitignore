@@ -3,4 +3,5 @@
 .vscode
 *.key
 *.crt
+*.rpm
 
