@@ -6,30 +6,47 @@
       name: postgresql-14
       state: restarted
   tasks:
+  - name: Set up repo
+    replace:
+      path: "{{ item }}"
+      regexp: '^mirrorlist'
+      replace: '#mirrorlist'
+    with_items:
+      - /etc/yum.repos.d/CentOS-Linux-AppStream.repo
+      - /etc/yum.repos.d/CentOS-Linux-BaseOS.repo
+
+  - name: Set up repo
+    replace:
+      path: "{{ item }}"
+      regexp: '#baseurl=http://mirror.centos.org'
+      replace: 'baseurl=http://vault.centos.org'
+    with_items:
+      - /etc/yum.repos.d/CentOS-Linux-AppStream.repo
+      - /etc/yum.repos.d/CentOS-Linux-BaseOS.repo
+
   - name: install soft
     ansible.builtin.yum:
       name: 
         - vim
-        - python3-pexpect.noarch
+        - epel-release
+        - python3-pexpect
         - python3-psycopg2
-        - barman-cli
-        - https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm 
+        - https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+      disable_gpg_check: yes  
       state: present
-
+      update_cache: true
+   
   - name: disable old postgresql module
-    shell: dnf -qy module disable postgresql
+    shell: dnf -qy module disable postgresql --nogpgcheck
 
   - name: install soft
     ansible.builtin.yum:
       name: 
-        -  postgresql14-server
+        - postgresql14
+        - barman-cli
       state: present
-
-  - name: start postgres
-    service: 
-      name:  postgresql-14
-      state: started
-      enabled:  yes
+      disable_gpg_check: yes  
+      update_cache: true
 
   - name: disable selinux
     shell: setenforce 0
@@ -42,14 +59,42 @@
     service: 
       name: postgresql-14
       state: restarted
-  tasks:    
-  - name: Create replicator user
-    become_user: postgres
-    postgresql_user:
-      name: replication
-      password: 'Otus2022!'
-      role_attr_flags: REPLICATION 
-    ignore_errors: true
+  tasks:  
+  - name: install soft
+    ansible.builtin.yum:
+      name: 
+        - postgresql14-server
+      state: present
+      disable_gpg_check: yes  
+      update_cache: true
+  - name: check init 
+    stat:
+      path: /var/lib/pgsql/14/data/pg_stat
+    register: stat_result
+
+  - name: initialization setup
+    shell: sudo /usr/pgsql-14/bin/postgresql-14-setup initdb
+    when: not stat_result.stat.exists
+
+  - name: start postgres
+    service: 
+      name:  postgresql-14
+      state: started
+      enabled:  yes
+ 
+  - name: generate SSH key for postgres
+    user:
+      name: postgres
+      generate_ssh_key: yes
+      ssh_key_type: rsa
+      ssh_key_bits: 4096
+      force: no
+
+  - name:  fetch key for barman
+    ansible.builtin.fetch:
+      src: /var/lib/pgsql/.ssh/id_rsa.pub
+      dest: ./postgres.pub
+      flat: yes    
 
   - name: set config 
     ansible.builtin.template:
@@ -59,8 +104,8 @@
       owner: postgres
       group: postgres
     loop:
-      - { src: tempaltes/pg_hba.conf, dest:  /var/lib/pgsql/14/data/pg_hba.conf}
-      - { src: tempaltes/postgresql.conf, dest: /var/lib/pgsql/14/data/postgresql.conf}
+      - { src: templates/pg_hba.conf, dest:  /var/lib/pgsql/14/data/pg_hba.conf}
+      - { src: templates/postgresql.conf, dest: /var/lib/pgsql/14/data/postgresql.conf}
     notify: RESTART POSTGRES     
  
   - name: check init 
@@ -72,6 +117,27 @@
     shell: sudo /usr/pgsql-14/bin/postgresql-14-setup initdb
     when: not stat_result.stat.exists
 
+  - name: Create replicator user
+    become_user: postgres
+    postgresql_user:
+      name: replication
+      password: 'Otus2022!'
+      role_attr_flags: REPLICATION 
+    ignore_errors: true
+
+  - name: Create DB for backup
+    become_user: postgres
+    postgresql_db:
+      name: otus
+      encoding: UTF-8
+      template: template0
+      state: present  
+  - name: Add tables to otus_backup
+    become_user: postgres
+    postgresql_table:
+      db: otus
+      name: test1
+      state: present
 - name: slave configure
   hosts: slave
   handlers:
@@ -80,6 +146,28 @@
       name: postgresql-14
       state: restarted
   tasks:    
+  - name: install soft
+    ansible.builtin.yum:
+      name: 
+        - postgresql14-server
+      state: present
+      disable_gpg_check: yes  
+      update_cache: true
+  - name: check init 
+    stat:
+      path: /var/lib/pgsql/14/data/pg_stat
+    register: stat_result
+
+  - name: initialization setup
+    shell: sudo /usr/pgsql-14/bin/postgresql-14-setup initdb
+    when: not stat_result.stat.exists
+
+  - name: start postgres
+    service: 
+      name:  postgresql-14
+      state: started
+      enabled:  yes
+ 
   - name: STOP POSTGRES
     service: 
       name: postgresql-14
@@ -105,10 +193,47 @@
       owner: postgres
       group: postgres
     loop:
-      - { src: tempaltes/pg_hba.conf, dest:  /var/lib/pgsql/14/data/pg_hba.conf}
-      - { src: tempaltes/postgresql.conf, dest: /var/lib/pgsql/14/data/postgresql.conf}
+      - { src: templates/pg_hba.conf, dest:  /var/lib/pgsql/14/data/pg_hba.conf}
+      - { src: templates/postgresql.conf, dest: /var/lib/pgsql/14/data/postgresql.conf}
     notify: RESTART POSTGRES  
 
-- name: postgres master configure
+- name: postgres backup configure
   hosts: barman
   tasks:  
+    - name: install soft
+      ansible.builtin.yum:
+        name: barman
+        state: present
+        update_cache: true
+
+    - name: generate SSH key for barman
+      user:
+        name: barman
+        uid: 993
+        shell: /bin/bash
+        generate_ssh_key: yes
+        ssh_key_type: rsa
+        ssh_key_bits: 4096
+        force: no     
+
+    - name: copy postgres key    
+      ansible.builtin.copy:
+        src: postgres.pub
+        dest: /var/lib/barman/.pgpass
+        owner: barman
+        group: barman
+        mode: '0600'
+
+    - name:  fetch key for barman
+      ansible.builtin.fetch:
+        src:  /var/lib/barman/.ssh/id_rsa.pub 
+        dest: ./barman.pub
+        flat: yes  
+
+    - name: barman switch-wal master
+      become_user: barman
+      shell: barman switch-wal master
+
+    - name: barman cron
+      become_user: barman
+      shell: barman cron
