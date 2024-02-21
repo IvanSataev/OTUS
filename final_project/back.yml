@@ -1,0 +1,8 @@
+---
+- name: configure front and back
+  hosts: all
+  tasks:
+  - name: install soft
+    yum:
+      name: vim, mysql
+      state: latest

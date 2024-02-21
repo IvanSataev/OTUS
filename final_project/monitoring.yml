@@ -1,0 +1,121 @@
+---
+- name: prepare server monitoring
+  hosts: monitoring
+  vars:
+    - zabbix_db_password: password
+  handlers: 
+    - name: SSHD RELOAD  
+      service:
+        name: sshd 
+        state: reloaded
+
+    - name: CHRONYD RESTART
+      service:
+        name: chronyd 
+        state: restarted
+    
+    - name: RSYSLOG RESTART 
+      service:
+        name: rsyslog 
+        state: restarted
+        enabled: yes        
+  tasks:
+  - name: Open ssh perminition
+    lineinfile:
+      path: /etc/ssh/sshd_config
+      regexp: '^\s*.?\s*PasswordAuthentication'
+      line: 'PasswordAuthentication yes'
+    notify: SSHD RELOAD 
+ 
+
+  - name: Chronyd configure
+    timezone:
+      name: 'Europe/Moscow'
+    notify: CHRONYD RESTART  
+
+
+  - name: Install syslog soft
+    yum: 
+      name: epel-release, vim, rsyslog
+
+   
+  - name: Configuration rsyslog   
+    blockinfile:
+      path: /etc/rsyslog.conf
+      block: |
+        # Provides UDP syslog reception
+        $ModLoad imudp
+        $UDPServerRun 514
+
+        # Provides TCP syslog reception
+        $ModLoad imtcp
+        $InputTCPServerRun 514
+
+        $template RemoteLogs, "/var/log/rsyslog/%HOSTNAME%/%PROGRAMNAME%.log"
+        *.* ?RemoteLogs
+        & ~
+    notify: RSYSLOG RESTART 
+
+  - name: install zabbix
+    yum:
+      name: "{{item}}"
+      state: latest  
+    loop:
+        - https://repo.zabbix.com/zabbix/5.0/rhel/7/x86_64/zabbix-release-5.0-1.el7.noarch.rpm
+        - zabbix-server-mysql 
+        - zabbix-agent
+        - centos-release-scl
+        - mariadb-server
+        - zabbix-web-mysql-scl
+        - zabbix-nginx-conf-scl
+        
+  - name: start mysql
+    ansible.builtin.service:
+      name: mariadb
+      state: started
+      enabled: yes
+  
+  - name: prepare mysql for zabbix
+    shell: "{{item}}"  
+    loop:
+      - mysql -uroot -e "create database zabbix character set utf8 collate utf8_bin;"
+      - mysql -uroot -e "grant all privileges on zabbix.* to zabbix@localhost identified by '{{zabbix_db_password}}';"
+      - mysql -uroot -e "set global log_bin_trust_function_creators = 1;"
+      - zcat /usr/share/doc/zabbix-server-mysql*/create.sql.gz | mysql -uzabbix -p{{zabbix_db_password}} zabbix
+      - mysql -uroot -e "set global log_bin_trust_function_creators = 0;"
+    ignore_errors: yes  
+       
+  - name: change config for zabbix
+    ansible.builtin.replace:
+      dest:  '{{item.path}}' 
+      regexp: '{{item.reg}}'
+      replace:  '{{item.rep}}'
+    loop:
+      - { path: '/etc/opt/rh/rh-nginx116/nginx/conf.d/zabbix.conf', reg: '#\s*listen\s*80;', rep: 'listen 80;' }
+      - { path: '/etc/opt/rh/rh-nginx116/nginx/conf.d/zabbix.conf', reg: '#\s*server_name\s*example.com;', rep: 'server_name zabbix.local.com;' }
+      - { path: '/etc/zabbix/zabbix_server.conf', reg: '#\s*DBPassword=', rep: 'DBPassword={{zabbix_db_password}}' }
+      - { path: '/etc/opt/rh/rh-php72/php-fpm.d/zabbix.conf', reg: 'listen.acl_users = apache\s+', rep: 'listen.acl_users = apache,nginx'}
+      - { path: '/etc/opt/rh/rh-php72/php-fpm.d/zabbix.conf', reg: '; php_value[date.timezone] = Europe/Riga', rep: 'php_value[date.timezone] = Europe/Moscow'}
+  
+  - name: open port
+    ansible.builtin.firewalld:
+      port: '{{item}}/tcp'
+      state: enabled
+      permanent: yes
+    loop:
+      - 80
+      - 443  
+
+  - name: start service for zabbix
+    service:
+      name: "{{item}}"
+      state: started
+      enabled: yes
+    loop: 
+      - zabbix-server
+      - zabbix-agent
+      - rh-nginx116-nginx
+      - rh-php72-php-fpm       
+
+
+
