@@ -1,0 +1,98 @@
+- name: Configure server
+  hosts: all
+  handlers: 
+    - name: RESTART SERVICE SSHD
+      service:
+        name: sshd 
+        state: reloaded
+    
+    - name: RSYSLOG RESTART 
+      service:
+        name: rsyslog 
+        state: restarted
+        enabled: yes      
+
+  tasks:
+  - name: Install soft
+    yum: 
+      name: epel-release, vim, rsyslog 
+
+  - name: install soft
+    yum:    
+     name: borgbackup 
+
+  - name: Create borg user
+    user:
+      name: borg
+      state: present
+      append: yes
+      groups: sshd
+
+  - name: Borg rsyslog conf
+    copy:
+      dest: /etc/rsyslog.d/borg.conf
+      content: |
+        if $programname == 'borg' then /var/log/borg.log
+        & stop
+      owner: root
+      group: root
+      mode: 0644
+    notify: RSYSLOG RESTART 
+
+  - name: Open ssh perminition
+    lineinfile:
+      path: /etc/ssh/sshd_config
+      regexp: '^\s*.?\s*PermitRootLogin'
+      line: 'PermitRootLogin yes'
+    notify: RESTART SERVICE SSHD  
+    
+  - name: Create backup directory 
+    file:
+      dest: /var/backup
+      owner: borg
+      group: borg
+      state: directory
+      mode: 0755
+  
+  - name: Borg ssh directory
+    file:
+      dest: /home/borg/.ssh
+      owner: borg
+      group: borg
+      state: directory
+      mode: 0700
+
+  - name: Borg ssh keypair
+    file:
+      dest: /home/borg/.ssh/id_ssh_rsa
+      owner: borg
+      group: borg
+      state: touch
+      mode: 0600
+
+  - name: Generate keypair 
+    ansible.builtin.openssh_keypair:
+      path: /home/borg/.ssh/id_ssh_rsa
+      owner: borg
+      group: borg
+
+  - name: COPY /home/borg/.ssh/authorized_keys
+    ansible.builtin.copy:
+      src: /home/borg/.ssh/id_ssh_rsa.pub
+      dest: /home/borg/.ssh/authorized_keys
+      owner: borg
+      group: borg
+      mode: 0600   
+      remote_src: yes
+
+  - name: COPY /home/borg/.ssh/id_ssh_rsa
+    ansible.builtin.fetch:
+      src: /home/borg/.ssh/id_ssh_rsa
+      dest: ./staff/id_ssh_rsa    
+      flat: yes
+  
+
+
+
+
+            

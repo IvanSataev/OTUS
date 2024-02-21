@@ -8,6 +8,13 @@
       service:
         name: sshd 
         state: reloaded
+    
+    - name: BORG SERVICE
+      service:
+        name: borg-backup.timer 
+        state: restarted
+        enabled: yes   
+        
 
     - name: CHRONYD RESTART
       service:
@@ -33,7 +40,7 @@
       name: 'Europe/Moscow'
     notify: CHRONYD RESTART  
 
-
+######### syslog ############
   - name: Install syslog soft
     yum: 
       name: epel-release, vim, rsyslog
@@ -55,7 +62,7 @@
         *.* ?RemoteLogs
         & ~
     notify: RSYSLOG RESTART 
-
+####### zabbix #########
   - name: install zabbix
     yum:
       name: "{{item}}"
@@ -116,6 +123,87 @@
       - zabbix-agent
       - rh-nginx116-nginx
       - rh-php72-php-fpm       
+####### borg #########
+  - name: Install soft
+    yum:    
+     name: borgbackup 
 
+  - name: Create borg user
+    user:
+      name: borg
+      state: present
+      append: yes
+      groups: sshd
+
+  - name: Borg ssh directory
+    file:
+      dest: /root/.ssh/
+      owner: root
+      group: root
+      state: directory
+      mode: 0700 
+  
+  - name: Borg ssh keypair
+    copy:
+      src: staff/id_ssh_rsa
+      dest: /root/.ssh/id_rsa        
+      owner: root
+      group: root
+      mode: 0600
+
+  - name: Borg log file
+    file:  
+      dest: /var/log/borg.log       
+      owner: root
+      group: root
+      state: touch
+      mode: 0666  
+ 
+
+  - name:  Add keypair known host
+    shell: 'ssh-keyscan -H 192.168.56.20 >> /root/.ssh/known_hosts'
+  
+  - name: Initialisation backup 
+    shell: 'borg init --encryption=none borg@192.168.56.20:/var/backup/'
+    #ignore_errors: yes 
+  - name: Create unit backup
+    copy:
+     dest:  /etc/systemd/system/borg-backup.service
+     content: |
+      [Unit]
+      Description=Borg Backup
+
+      [Service]
+      Type=oneshot
+
+      # Парольная фраза
+      Environment="BORG_PASSPHRASE="
+      # Репозиторий
+      Environment=REPO=borg@192.168.56.20:/var/backup/
+      # Что бэкапим
+      Environment=BACKUP_TARGET=/etc
+
+      # Создание бэкапа
+      ExecStart=/bin/borg create --stats ${REPO}::etc-{now:%%Y-%%m-%%d_%%H:%%M:%%S} ${BACKUP_TARGET}
+      # Проверка бэкапа
+      ExecStart=/bin/borg check ${REPO}
+
+      # Очистка старых бэкапов
+      ExecStart=/bin/borg prune --keep-daily  90 --keep-monthly 12 --keep-yearly  1   ${REPO}
+    notify: BORG SERVICE
+
+  - name: Create unit timer
+    copy:
+     dest:  /etc/systemd/system/borg-backup.timer
+     content: |
+      [Unit]
+      Description=Borg Backup
+
+      [Timer]
+      OnUnitActiveSec=5min
+
+      [Install]
+      WantedBy=timers.target
+    notify: BORG SERVICE
 
 
