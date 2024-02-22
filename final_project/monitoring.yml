@@ -11,7 +11,7 @@
     
     - name: BORG SERVICE
       service:
-        name: borg-backup.timer 
+        name: borg-backup.service 
         state: restarted
         enabled: yes   
         
@@ -43,9 +43,9 @@
 ######### syslog ############
   - name: Install syslog soft
     yum: 
-      name: epel-release, vim, rsyslog
+      name: epel-release, vim, rsyslog, certbot
 
-   
+#### selinux semanage port -m -t syslogd_port_t -p tcp 514   
   - name: Configuration rsyslog   
     blockinfile:
       path: /etc/rsyslog.conf
@@ -106,12 +106,22 @@
   
   - name: open port
     ansible.builtin.firewalld:
-      port: '{{item}}/tcp'
+      port: '{{item}}'
       state: enabled
       permanent: yes
     loop:
-      - 80
-      - 443  
+      - 80/tcp
+      - 443/tcp
+      - 514/tcp
+      - 514/udp  
+
+
+  # - name: copy sert zabbix
+  #   copy:
+  #     dest: /etc/opt/rh/rh-nginx116/nginx/ssl/
+  #     src: /etc/letsencrypt/live/zabbix.local.com/ 
+  #     remote_src: yes
+
 
   - name: start service for zabbix
     service:
@@ -145,7 +155,7 @@
   
   - name: Borg ssh keypair
     copy:
-      src: staff/id_ssh_rsa
+      src: ./staff/id_ssh_rsa_borg
       dest: /root/.ssh/id_rsa        
       owner: root
       group: root
@@ -165,7 +175,8 @@
   
   - name: Initialisation backup 
     shell: 'borg init --encryption=none borg@192.168.56.20:/var/backup/'
-    #ignore_errors: yes 
+    ignore_errors: yes 
+
   - name: Create unit backup
     copy:
      dest:  /etc/systemd/system/borg-backup.service

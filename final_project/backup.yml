@@ -1,5 +1,15 @@
 - name: Configure server
-  hosts: all
+  hosts: backup
+  vars:
+    - zabbix_conf: |
+        PidFile=/var/run/zabbix/zabbix_agentd.pid
+        LogFile=/var/log/zabbix/zabbix_agentd.log
+        LogFileSize=0
+        Server=192.168.56.15
+        ListenIP=0.0.0.0
+        HostnameItem=system.hostname
+        Include=/etc/zabbix/zabbix_agentd.d/*.conf 
+
   handlers: 
     - name: RESTART SERVICE SSHD
       service:
@@ -12,28 +22,69 @@
         state: restarted
         enabled: yes      
 
+    - name: RESTART SERVICE ZABBIX
+      service:
+        name: zabbix-agent
+        state: restarted    
+
   tasks:
+  - name: add repo zabbix
+    copy:
+      dest: /etc/yum.repos.d/zabbix.repo
+      content: |
+          [smb-local-zabbix50]
+          name=Samberi Local - Zabbix 5.0 $releasever
+          baseurl=https://repo.zabbix.com/zabbix/5.0/rhel/$releasever/$basearch/
+          enabled=1
+          gpgcheck=0       
+
   - name: Install soft
     yum: 
-      name: epel-release, vim, rsyslog 
+      name: '{{item}}'
+      state: latest
+    loop: 
+      - epel-release
+      - vim
+      - rsyslog
+      - borgbackup
+      - zabbix-agent
 
-  - name: install soft
-    yum:    
-     name: borgbackup 
 
-  - name: Create borg user
-    user:
-      name: borg
-      state: present
-      append: yes
-      groups: sshd
-
+############RSYSLOG###################
   - name: Borg rsyslog conf
     copy:
       dest: /etc/rsyslog.d/borg.conf
       content: |
         if $programname == 'borg' then /var/log/borg.log
         & stop
+      owner: root
+      group: root
+      mode: 0644
+    notify: RSYSLOG RESTART 
+  
+  - name: Borg rsyslog remote conf
+    copy:
+      dest: /etc/rsyslog.d/borg_remote.conf
+      content: |
+        *.* @@192.168.56.15:514
+      owner: root
+      group: root
+      mode: 0644
+    notify: RSYSLOG RESTART
+  ################BORG##########
+  - name: Create borg user
+    user:
+      name: borg
+      state: present
+      append: yes
+      groups: sshd
+  - name: Borg zabbix-agent remote conf
+    copy:
+      dest: /etc/rsyslog.d/zabbix.conf
+      content: |
+        $ModLoad imfile
+        $InputFileName /var/log/zabbix/zabbix-agentd.log
+        *.* @@192.168.56.15:514
       owner: root
       group: root
       mode: 0644
@@ -88,11 +139,32 @@
   - name: COPY /home/borg/.ssh/id_ssh_rsa
     ansible.builtin.fetch:
       src: /home/borg/.ssh/id_ssh_rsa
-      dest: ./staff/id_ssh_rsa    
+      dest: ./staff/id_ssh_rsa_borg    
       flat: yes
   
+##################ZABBIX-AGENT#########################
+  - name: ZABBIX CONF
+    copy:
+      dest: "/etc/zabbix/zabbix_agentd.conf"
+      content: "{{ zabbix_conf }}"
+    notify: RESTART SERVICE ZABBIX
+  
+  - name: START ZABBIX
+    service: 
+      name: zabbix-agent 
+      state: started 
+      enabled: yes
+  - name: GET SERVICES STATUS (for firewalld)
+    systemd:
+      name: firewalld
+    register: firewalld_status
 
-
-
+  - name: OPEN ZABBIX PORT
+    firewalld:
+      port: 10050/tcp
+      permanent: yes
+      state: enabled
+    when: firewalld_status.status.ActiveState == "active"
+    notify: RESTART FIREWALLD
 
             
