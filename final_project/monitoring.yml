@@ -37,7 +37,7 @@
 
   - name: Chronyd configure
     timezone:
-      name: 'Europe/Moscow'
+      name: 'Asia/Vladivostok' 
     notify: CHRONYD RESTART  
 
 ######### syslog ############
@@ -166,7 +166,7 @@
       dest: /var/log/borg.log       
       owner: root
       group: root
-      state: touch
+      state: file
       mode: 0666  
  
 
@@ -191,11 +191,10 @@
       Environment="BORG_PASSPHRASE="
       # Репозиторий
       Environment=REPO=borg@192.168.56.20:/var/backup/
-      # Что бэкапим
-      Environment=BACKUP_TARGET=/etc
-
+     
       # Создание бэкапа
-      ExecStart=/bin/borg create --stats ${REPO}::etc-{now:%%Y-%%m-%%d_%%H:%%M:%%S} ${BACKUP_TARGET}
+      ExecStart=/bin/borg create --list -C zstd ${REPO}::zabbix-{now:%%Y-%%m-%%d_%%H:%%M:%%S} /etc /usr/share/zabbix/ /opt/backup
+      ExecStart=/bin/borg create --list -C zstd ${REPO}::monitoring-log-{now:%%Y-%%m-%%d_%%H:%%M:%%S}  /var/log/
       # Проверка бэкапа
       ExecStart=/bin/borg check ${REPO}
 
@@ -216,5 +215,21 @@
       [Install]
       WantedBy=timers.target
     notify: BORG SERVICE
+#########SQL BACKUP###########
+
+  - name: create backup directory
+    file:
+      dest: /opt/backup
+      state: directory
+      mode: 0755
+      owner: root
+      group: root
+
+
+  - name: Add crontab task
+    lineinfile:
+      dest: /etc/crontab
+      regex: '.*mysqldump -u zabbix -p{{zabbix_db_password}} zabbix > \/opt\/backup\/zabbix.sql'
+      line: '*/60 * * * * root mysqldump -u zabbix -p{{zabbix_db_password}} zabbix > /opt/backup/zabbix.sql'
 
 

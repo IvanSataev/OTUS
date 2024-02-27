@@ -25,7 +25,12 @@
     - name: RESTART SERVICE ZABBIX
       service:
         name: zabbix-agent
-        state: restarted    
+        state: restarted   
+    
+    - name: CHRONYD RESTART
+      service:
+        name: chronyd 
+        state: restarted     
 
   tasks:
   - name: add repo zabbix
@@ -49,6 +54,10 @@
       - borgbackup
       - zabbix-agent
 
+  - name: Chronyd configure
+    timezone:
+      name: 'Asia/Vladivostok' 
+    notify: CHRONYD RESTART  
 
 ############RSYSLOG###################
   - name: Borg rsyslog conf
