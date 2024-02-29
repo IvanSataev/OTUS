@@ -1,6 +1,6 @@
 ---
 - name: Prepare server monitoring
-  hosts: front, back
+  hosts: front # , back
   vars:
     - zabbix_conf: |
         PidFile=/var/run/zabbix/zabbix_agentd.pid
@@ -59,7 +59,15 @@
           name=Samberi Local - Zabbix 5.0 $releasever
           baseurl=https://repo.zabbix.com/zabbix/5.0/rhel/$releasever/$basearch/
           enabled=1
-          gpgcheck=0  
+          gpgcheck=0 
+
+  - name: Add docker repo 
+    ansible.builtin.copy:
+      src: staff/docker.repo  
+      dest: /etc/yum.repos.d/docker-ce.repo
+      owner: root
+      group: root
+      mode: 0644
 
   - name: Install syslog soft
     yum: 
@@ -68,11 +76,22 @@
     loop:
       - epel-release
       - vim
+      - git
       - rsyslog
       - zabbix-agent
       - wget
       - borgbackup 
+      - docker-ce
+      - docker-ce-cli 
+      - containerd.io 
+      - docker-buildx-plugin 
+      - docker-compose-plugin
 
+  - name: Docker start
+    service:
+      name: docker
+      state:  started
+      enabled: yes
 
   - name: Create borg user
     user:
@@ -103,7 +122,7 @@
   - name: Initialisation backup 
     shell: "{{item}}"
     loop:
-      -  'borg init --encryption=none borg@192.168.56.20:/var/backup/application-{{ansible_hostname}}'
+      -  'borg init --encryption=none borg@192.168.56.20:application-{{ansible_hostname}}'
     ignore_errors: yes 
 
   - name: Create unit backup
@@ -119,7 +138,7 @@
       # Парольная фраза
       Environment="BORG_PASSPHRASE="
       # Репозиторий
-      Environment=REPO=borg@192.168.56.20:/var/backup/
+      Environment=REPO=borg@192.168.56.20:
      
       # Создание бэкапа
       ExecStart=/bin/borg create  -C zstd ${REPO}application-{{ansible_hostname}}::application-{now:%%Y-%%m-%%d_%%H:%%M:%%S} /etc /opt/
@@ -180,3 +199,11 @@
       state: enabled
     when: firewalld_status.status.ActiveState == "active"
     notify: RESTART FIREWALLD  
+
+  - name: Copy git repository galery 
+    ansible.builtin.copy:
+      src: staff/gallery3
+      dest: /opt/galery3
+  
+  - name: docker compose up
+    shell: 'cd /opt/galery3 && docker compose -p gallery3 up -d'

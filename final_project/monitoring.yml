@@ -179,8 +179,8 @@
   - name: Initialisation backup 
     shell: "{{item}}"
     loop:
-      -  'borg init --encryption=none borg@192.168.56.20:/var/backup/zabbix'
-      -  'borg init --encryption=none borg@192.168.56.20:/var/backup/monitoring-log'
+      -  'borg init --encryption=none borg@192.168.56.20:zabbix'
+      -  'borg init --encryption=none borg@192.168.56.20:log'
     ignore_errors: yes 
 
   - name: Create unit backup
@@ -196,11 +196,11 @@
       # Парольная фраза
       Environment="BORG_PASSPHRASE="
       # Репозиторий
-      Environment=REPO=borg@192.168.56.20:/var/backup/
+      Environment=REPO=borg@192.168.56.20:
      
       # Создание бэкапа
       ExecStart=/bin/borg create  -C zstd ${REPO}zabbix::zabbix-{now:%%Y-%%m-%%d_%%H:%%M:%%S} /etc /usr/share/zabbix/ /opt/backup
-      ExecStart=/bin/borg create  -C zstd ${REPO}monitoring-log::monitoring-log-{now:%%Y-%%m-%%d_%%H:%%M:%%S}  /var/log/
+      ExecStart=/bin/borg create  -C zstd ${REPO}log::log-{now:%%Y-%%m-%%d_%%H:%%M:%%S}  /var/log/
 
     notify: BORG SERVICE
 
@@ -241,9 +241,6 @@
       line: '*/60 * * * * root mysqldump -u zabbix -p{{zabbix_db_password}} zabbix > /opt/backup/zabbix.sql'
 
 #####################PLAYBOOK BACKUP############################################################################
-
-
-
 
 
 - name: Configure backup server
