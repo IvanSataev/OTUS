@@ -1,5 +1,5 @@
 ---
-- name: prepare server monitoring
+- name: Prepare server monitoring
   hosts: monitoring
   vars:
     - zabbix_db_password: password
@@ -129,8 +129,11 @@
   #     src: /etc/letsencrypt/live/zabbix.local.com/ 
   #     remote_src: yes
 
-  - name: Selinux add rule
-    shell: 'grep AVC /var/log/audit/audit.log* | audit2allow -M systemd-allow; semodule -i systemd-allow.pp'
+  # - name: Selinux add rule
+  #   shell: 'grep AVC /var/log/audit/audit.log* | audit2allow -M systemd-allow; semodule -i systemd-allow.pp'
+
+  - name: Selinux
+    shell: setenforce 0  
       
   - name: start service for zabbix
     service:
@@ -168,16 +171,7 @@
       dest: /root/.ssh/id_rsa        
       owner: root
       group: root
-      mode: 0600
-
-  - name: Borg log file
-    file:  
-      dest: /var/log/borg.log       
-      owner: root
-      group: root
-      state: touch
-      mode: 0666  
- 
+      mode: 0600 
 
   - name:  Add keypair known host
     shell: 'ssh-keyscan -H 192.168.56.20 >> /root/.ssh/known_hosts'
@@ -205,13 +199,9 @@
       Environment=REPO=borg@192.168.56.20:/var/backup/
      
       # Создание бэкапа
-      ExecStart=/bin/borg create --list -C zstd ${REPO}zabbix::zabbix-{now:%%Y-%%m-%%d_%%H:%%M:%%S} /etc /usr/share/zabbix/ /opt/backup
-      ExecStart=/bin/borg create --list -C zstd ${REPO}monitoring-log::monitoring-log-{now:%%Y-%%m-%%d_%%H:%%M:%%S}  /var/log/
-      # Проверка бэкапа
-      ExecStart=/bin/borg check ${REPO}
+      ExecStart=/bin/borg create  -C zstd ${REPO}zabbix::zabbix-{now:%%Y-%%m-%%d_%%H:%%M:%%S} /etc /usr/share/zabbix/ /opt/backup
+      ExecStart=/bin/borg create  -C zstd ${REPO}monitoring-log::monitoring-log-{now:%%Y-%%m-%%d_%%H:%%M:%%S}  /var/log/
 
-      # Очистка старых бэкапов
-      ExecStart=/bin/borg prune --keep-daily  90 --keep-monthly 12 --keep-yearly  1   ${REPO}
     notify: BORG SERVICE
 
   - name: Create unit timer
@@ -232,7 +222,7 @@
     service:
       name: borg-backup.timer
       state: started
-      enabled: yesborg init --encryption=none borg@192.168.56.20:/var/backup/monitoring-log
+      enabled: yes
 #########SQL BACKUP###########
 
   - name: create backup directory

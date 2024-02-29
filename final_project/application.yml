@@ -1,0 +1,182 @@
+---
+- name: Prepare server monitoring
+  hosts: front, back
+  vars:
+    - zabbix_conf: |
+        PidFile=/var/run/zabbix/zabbix_agentd.pid
+        LogFile=/var/log/zabbix/zabbix_agentd.log
+        LogFileSize=0
+        Server=192.168.56.15
+        ListenIP=0.0.0.0
+        HostnameItem=system.hostname
+        Include=/etc/zabbix/zabbix_agentd.d/*.conf 
+  handlers: 
+    - name: SSHD RELOAD  
+      service:
+        name: sshd 
+        state: reloaded
+    
+    - name: BORG SERVICE
+      service:
+        name: borg-backup.service 
+        state: restarted
+        enabled: yes   
+
+    - name: CHRONYD RESTART
+      service:
+        name: chronyd 
+        state: restarted
+    
+    - name: RSYSLOG RESTART 
+      service:
+        name: rsyslog 
+        state: restarted
+        enabled: yes    
+    
+    - name: RESTART SERVICE ZABBIX
+      service:
+        name: zabbix-agent
+        state: restarted           
+  tasks:
+  - name: Open ssh perminition
+    lineinfile:
+      path: /etc/ssh/sshd_config
+      regexp: '^\s*.?\s*PasswordAuthentication'
+      line: 'PasswordAuthentication yes'
+    notify: SSHD RELOAD 
+ 
+
+  - name: Chronyd configure
+    timezone:
+      name: 'Asia/Vladivostok' 
+    notify: CHRONYD RESTART  
+
+  - name: add repo zabbix
+    copy:
+      dest: /etc/yum.repos.d/zabbix.repo
+      content: |
+          [smb-local-zabbix50]
+          name=Samberi Local - Zabbix 5.0 $releasever
+          baseurl=https://repo.zabbix.com/zabbix/5.0/rhel/$releasever/$basearch/
+          enabled=1
+          gpgcheck=0  
+
+  - name: Install syslog soft
+    yum: 
+      name: '{{item}}'
+      state: present
+    loop:
+      - epel-release
+      - vim
+      - rsyslog
+      - zabbix-agent
+      - wget
+      - borgbackup 
+
+
+  - name: Create borg user
+    user:
+      name: borg
+      state: present
+      append: yes
+      groups: sshd
+
+  - name: Borg ssh directory
+    file:
+      dest: /root/.ssh/
+      owner: root
+      group: root
+      state: directory
+      mode: 0700 
+  
+  - name: Borg ssh keypair
+    copy:
+      src: ./staff/id_ssh_rsa_borg
+      dest: /root/.ssh/id_rsa        
+      owner: root
+      group: root
+      mode: 0600
+
+  - name:  Add keypair known host
+    shell: 'ssh-keyscan -H 192.168.56.20 >> /root/.ssh/known_hosts'
+  
+  - name: Initialisation backup 
+    shell: "{{item}}"
+    loop:
+      -  'borg init --encryption=none borg@192.168.56.20:/var/backup/application-{{ansible_hostname}}'
+    ignore_errors: yes 
+
+  - name: Create unit backup
+    copy:
+     dest:  /etc/systemd/system/borg-backup.service
+     content: |
+      [Unit]
+      Description=Borg Backup
+
+      [Service]
+      Type=oneshot
+
+      # Парольная фраза
+      Environment="BORG_PASSPHRASE="
+      # Репозиторий
+      Environment=REPO=borg@192.168.56.20:/var/backup/
+     
+      # Создание бэкапа
+      ExecStart=/bin/borg create  -C zstd ${REPO}application-{{ansible_hostname}}::application-{now:%%Y-%%m-%%d_%%H:%%M:%%S} /etc /opt/
+      
+
+    notify: BORG SERVICE
+
+  - name: Create unit timer
+    copy:
+     dest:  /etc/systemd/system/borg-backup.timer
+     content: |
+      [Unit]
+      Description=Borg Backup
+
+      [Timer]
+      OnUnitActiveSec=5min
+
+      [Install]
+      WantedBy=timers.target
+    notify: BORG SERVICE
+  
+  - name:  Enabled timer for backup
+    service:
+      name: borg-backup.timer
+      state: started
+      enabled: yes
+  
+  - name: Borg rsyslog remote conf
+    copy:
+      dest: /etc/rsyslog.d/{{ansible_hostname}}.conf
+      content: |
+        *.* @@192.168.56.15:514
+      owner: root
+      group: root
+      mode: 0644
+    notify: RSYSLOG RESTART
+
+  - name: ZABBIX CONF
+    copy:
+      dest: "/etc/zabbix/zabbix_agentd.conf"
+      content: "{{ zabbix_conf }}"
+    notify: RESTART SERVICE ZABBIX
+  
+  - name: START ZABBIX
+    service: 
+      name: zabbix-agent 
+      state: started 
+      enabled: yes
+  - name: GET SERVICES STATUS (for firewalld)
+    systemd:
+      name: firewalld
+    register: firewalld_status
+
+  - name: OPEN ZABBIX PORT
+    firewalld:
+      port: 10050/tcp
+      permanent: yes
+      state: enabled
+    when: firewalld_status.status.ActiveState == "active"
+    notify: RESTART FIREWALLD  
