@@ -30,7 +30,7 @@
   - name: Open ssh perminition
     lineinfile:
       path: /etc/ssh/sshd_config
-      regexp: '^\s*.?\s*PasswordAuthentication'
+      regexp: '^\s*.?\s*PasswordAuthentication no'
       line: 'PasswordAuthentication yes'
     notify: SSHD RELOAD 
  
@@ -217,7 +217,12 @@
       [Install]
       WantedBy=timers.target
     notify: BORG SERVICE
-  
+
+  - name: Backup not encrypt repo accept
+    shell: 'yes | borg list borg@192.168.56.20:{{item}}'
+    loop: 
+      - zabbix
+      - log
   - name:  Enabled timer for backup
     service:
       name: borg-backup.timer
@@ -347,9 +352,9 @@
   - name: Open ssh perminition
     lineinfile:
       path: /etc/ssh/sshd_config
-      regexp: '^\s*.?\s*PermitRootLogin'
-      line: 'PermitRootLogin yes'
-    notify: RESTART SERVICE SSHD  
+      regexp: '^\s*.?\s*PasswordAuthentication no'
+      line: 'PasswordAuthentication yes'
+    notify: SSHD RELOAD 
     
   - name: Create backup directory 
     file:

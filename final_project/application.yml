@@ -41,7 +41,7 @@
   - name: Open ssh perminition
     lineinfile:
       path: /etc/ssh/sshd_config
-      regexp: '^\s*.?\s*PasswordAuthentication'
+      regexp: '^\s*.?\s*PasswordAuthentication no'
       line: 'PasswordAuthentication yes'
     notify: SSHD RELOAD 
  
@@ -160,6 +160,9 @@
       WantedBy=timers.target
     notify: BORG SERVICE
   
+  - name: Backup not encrypt repo accept
+    shell: 'yes | borg list borg@192.168.56.20:application-{{ansible_hostname}} '
+
   - name:  Enabled timer for backup
     service:
       name: borg-backup.timer
@@ -200,10 +203,28 @@
     when: firewalld_status.status.ActiveState == "active"
     notify: RESTART FIREWALLD  
 
+
+
+
+- name: Master prepare 
+  hosts: front
+  vars: 
+    - mysql_root_password: myrootpw
+  tasks:
+ 
+
+
   - name: Copy git repository galery 
     ansible.builtin.copy:
       src: staff/gallery3
-      dest: /opt/galery3
-  
+      dest: /opt
+
   - name: docker compose up
-    shell: 'cd /opt/galery3 && docker compose -p gallery3 up -d'
+    shell: 'cd /opt/gallery3 && docker compose -p gallery3 up -d'
+  
+  - name: Create user
+    shell: docker exec -it gallery3-mysql-1 mysql -uroot -p"{{ mysql_root_password }}" -e  "CREATE USER 'replication'@'%';"
+  
+  # - name: blocking table for backup
+  #   shell: docker exec -it gallery3-mysql-1 mysql -uroot -p"{{ mysql_root_password }}" -e "FLUSH TABLES WITH READ LOCK;"  
+

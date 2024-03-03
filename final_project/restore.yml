@@ -1,0 +1,7 @@
+- name: Restore machine
+  host: all
+  tasks:
+  - name: Get name backup
+    shell: borg list borg@192.168.56.20:application-front | tail -3 | head -1 | awk '{print $1}'
+    register: borg_backup_name
+    
