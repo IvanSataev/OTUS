@@ -1,7 +1,8 @@
 ---
 - name: Prepare server monitoring
-  hosts: front # , back
+  hosts: front, back
   vars:
+    - mysql_root_password: myrootpw
     - zabbix_conf: |
         PidFile=/var/run/zabbix/zabbix_agentd.pid
         LogFile=/var/log/zabbix/zabbix_agentd.log
@@ -10,6 +11,8 @@
         ListenIP=0.0.0.0
         HostnameItem=system.hostname
         Include=/etc/zabbix/zabbix_agentd.d/*.conf 
+  vars_files:
+    -  staff/vars      
   handlers: 
     - name: SSHD RELOAD  
       service:
@@ -73,19 +76,11 @@
     yum: 
       name: '{{item}}'
       state: present
+      update_cache: yes
     loop:
-      - epel-release
-      - vim
-      - git
-      - rsyslog
-      - zabbix-agent
-      - wget
+      - epel-release, vim, git, zabbix-agent, wget, MySQL-python
       - borgbackup 
-      - docker-ce
-      - docker-ce-cli 
-      - containerd.io 
-      - docker-buildx-plugin 
-      - docker-compose-plugin
+      - docker-ce, docker-ce-cli, containerd.io, docker-buildx-plugin, docker-compose-plugin 
 
   - name: Docker start
     service:
@@ -204,27 +199,65 @@
     notify: RESTART FIREWALLD  
 
 
-
-
-- name: Master prepare 
-  hosts: front
-  vars: 
-    - mysql_root_password: myrootpw
-  tasks:
+#######SQL REPLICATION MASTER####################################
  
-
-
   - name: Copy git repository galery 
     ansible.builtin.copy:
       src: staff/gallery3
       dest: /opt
 
+  - name: Create configuration for replication
+    ansible.builtin.template:
+      src: staff/master.cnf
+      dest: /opt/gallery3/master.cnf  
+
   - name: docker compose up
     shell: 'cd /opt/gallery3 && docker compose -p gallery3 up -d'
   
-  - name: Create user
-    shell: docker exec -it gallery3-mysql-1 mysql -uroot -p"{{ mysql_root_password }}" -e  "CREATE USER 'replication'@'%';"
-  
-  # - name: blocking table for backup
-  #   shell: docker exec -it gallery3-mysql-1 mysql -uroot -p"{{ mysql_root_password }}" -e "FLUSH TABLES WITH READ LOCK;"  
+  - name: sleep 10
+    shell: sleep 10
 
+  - name: create user in db
+    ansible.builtin.mysql_user:
+      name: replication
+      host: '%' 
+      login_user: root
+      login_password: "myrootpw"
+      login_host: 192.168.56.5
+      priv: "*.*:REPLICATION SLAVE"
+      state: present  
+    when: (ansible_hostname == "front")    
+
+  - name: get log position
+    shell: docker exec -it gallery3-mysql-1 mysql -uroot -p"{{ mysql_root_password }}" -e "SHOW MASTER STATUS;" | grep "bin" | awk '{print ${{item}}}'
+    loop: 
+      - 4
+      - 2
+    register: log_pos
+    when: (ansible_hostname == "front")
+
+  - name: create vars files
+    copy:
+      dest: vars
+      content: |
+        log_position: "{{log_pos.results[0].stdout}}"
+        log_master: "{{log_pos.results[1].stdout}}"
+    when: (ansible_hostname == "front")
+
+  - name: fetch vars log_pos
+    fetch:
+      src: vars
+      dest: staff/vars
+      flat:  yes
+    when: (ansible_hostname == "front")  
+
+  - debug:
+      var: log_master, log_position  
+
+  - name: Slave replication
+    shell: docker exec -it gallery3-mysql-1 mysql -uroot -p"{{ mysql_root_password }}" -e  "{{item}}"
+    loop: 
+    - "CHANGE MASTER TO MASTER_HOST='192.168.56.5', MASTER_USER='replication', MASTER_LOG_FILE='{{log_master | default('')}}', MASTER_LOG_POS={{log_position}};"
+    - "START SLAVE;"
+    when: (ansible_hostname == "back")
+  

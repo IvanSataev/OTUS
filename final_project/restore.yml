@@ -1,7 +1,19 @@
 - name: Restore machine
-  host: all
+  hosts: all
   tasks:
   - name: Get name backup
     shell: borg list borg@192.168.56.20:application-front | tail -3 | head -1 | awk '{print $1}'
     register: borg_backup_name
-    
+
+
+- name: Restore backup
+  hosts: backup
+  tasks:
+  - name: reinit repository
+    shell: 'borg init --encryption=none borg@192.168.56.20:{{item}}'
+    loop:
+      - zabbix
+      - monitoring
+      - application-front
+      - application-back
+    ignore_errors: yes
