@@ -12,7 +12,7 @@ services:
     ports:
        - 3306:3306
     volumes:
-      - ./master.cnf://etc/mysql/conf.d/master.cnf
+      - ./master.cnf:/etc/mysql/conf.d/master.cnf
       - ./mysql:/var/lib/mysql
   gallery3:
     image: bwdutton/gallery3

@@ -1,9 +1,62 @@
 - name: Restore machine
-  hosts: all
+  hosts: back, front
   tasks:
   - name: Get name backup
-    shell: borg list borg@192.168.56.20:application-front | tail -3 | head -1 | awk '{print $1}'
+    shell: borg list borg@192.168.56.20:application-{{ansible_hostname}} | tail -3 | head -1 | awk '{print $1}'
     register: borg_backup_name
+  
+  - name: Mount backup repository
+    shell: borg mount borg@192.168.56.20:application-{{ansible_hostname}}::{{borg_backup_name.stdout}} /mnt
+  
+  - name: Stop docker compose
+    shell: cd /opt/gallery3 && docker compose stop
+  
+  - name: Copy files
+    copy:
+      src: /mnt/opt/gallery3  
+      dest: /opt/gallery3
+      remote_src: yes
+
+  - name: docker compose up
+    shell: 'cd /opt/gallery3 && docker compose -p gallery3 up -d'    
+
+
+- name: Restore monitoring
+  hosts: monitoring
+  tasks:
+  - name: Get name backup
+    shell: borg list borg@192.168.56.20:zabbix | tail -3 | head -1 | awk '{print $1}'
+    register: borg_backup_name
+
+  - name: Mount backup repository
+    shell: borg mount borg@192.168.56.20:zabbix::{{borg_backup_name.stdout}} /mnt
+ 
+  - name: zabbix server stoped
+    service:
+      name: zabbix-server
+      state: stopped
+
+  - name: Copy files
+    copy:
+      src: '{{item.src}}'
+      dest: '{{item.dest}}'
+      remote_src: yes 
+    loop: 
+      - {src: /mnt/usr/share/zabbix , dest: /usr/share/zabbix }
+      - {src: /mnt/etc , dest: /etc }
+    
+  - name: import backup db
+    ansible.builtin.mysql_db:
+      name: zabbix
+      state: import
+      target: /mnt/opt/backup/zabbix.sql
+      login_user: root
+
+  - name: zabbix server started
+    service:
+      name: zabbix-server
+      state: started
+
 
 
 - name: Restore backup
