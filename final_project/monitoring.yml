@@ -76,12 +76,10 @@
       name: "{{item}}"
       state: present  
     loop:
-        - zabbix-server-mysql 
-        - zabbix-agent
+        - zabbix-server-mysql, zabbix-agent, MySQL-python
         - centos-release-scl
         - mariadb-server
-        - zabbix-web-mysql-scl
-        - zabbix-nginx-conf-scl
+        - zabbix-web-mysql-scl, zabbix-nginx-conf-scl
         
   - name: start mysql
     ansible.builtin.service:

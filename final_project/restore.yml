@@ -1,24 +1,53 @@
 - name: Restore machine
   hosts: back, front
   tasks:
-  - name: Get name backup
-    shell: borg list borg@192.168.56.20:application-{{ansible_hostname}} | tail -3 | head -1 | awk '{print $1}'
-    register: borg_backup_name
-  
-  - name: Mount backup repository
-    shell: borg mount borg@192.168.56.20:application-{{ansible_hostname}}::{{borg_backup_name.stdout}} /mnt
-  
+  - name: Check state docker compose 
+    stat: 
+      path: /opt/gallery3/docker-compose.yml
+    register: check_docker  
+
   - name: Stop docker compose
     shell: cd /opt/gallery3 && docker compose stop
+    when: check_docker.stat.exists
   
+  - name: check mnt
+    stat:
+      path: /mnt/opt
+    register: check_mnt
+
+  - name: delete file
+    file:
+      path: /mnt/opt
+      state: absent
+    when: check_mnt.stat.exists
+
+  - name: delete file from opt
+    file:
+      path: /opt/gallery3
+      state: absent
+    when: check_docker.stat.exists
+
+  - name: Get name backup
+    shell: "borg list borg@192.168.56.20:application-{{ansible_hostname}} | tail -3 | head -1 | awk '{print $1}'"
+    register: borg_backup_name
+
+  - name: Mount backup repository
+    shell: "cd /mnt && borg extract  borg@192.168.56.20:application-{{ansible_hostname}}::{{borg_backup_name.stdout}}"
+
   - name: Copy files
     copy:
-      src: /mnt/opt/gallery3  
-      dest: /opt/gallery3
+      src: /mnt/opt/gallery3 
+      dest: /opt/
       remote_src: yes
+      mode: preserve
 
   - name: docker compose up
     shell: 'cd /opt/gallery3 && docker compose -p gallery3 up -d'    
+
+
+
+
+
 
 
 - name: Restore monitoring
@@ -27,23 +56,38 @@
   - name: Get name backup
     shell: borg list borg@192.168.56.20:zabbix | tail -3 | head -1 | awk '{print $1}'
     register: borg_backup_name
+ 
+  - name: check mnt
+    stat:
+      path: /mnt/opt
+    register: check_mnt
 
+  - name: delete file
+    file:
+      path: /mnt/opt
+      state: absent
+    when: check_mnt.stat.exists
+ 
   - name: Mount backup repository
-    shell: borg mount borg@192.168.56.20:zabbix::{{borg_backup_name.stdout}} /mnt
+    shell: cd /mnt && borg extract borg@192.168.56.20:zabbix::{{borg_backup_name.stdout}} #zabbix-2024-03-06_19:04:01
  
   - name: zabbix server stoped
     service:
-      name: zabbix-server
+      name: "{{item}}"
       state: stopped
-
-  - name: Copy files
-    copy:
-      src: '{{item.src}}'
-      dest: '{{item.dest}}'
-      remote_src: yes 
     loop: 
-      - {src: /mnt/usr/share/zabbix , dest: /usr/share/zabbix }
-      - {src: /mnt/etc , dest: /etc }
+     -  zabbix-server 
+
+  # - name: Copy files
+  #   copy:
+  #     src: '{{item.src}}'
+  #     dest: '{{item.dest}}'
+  #     remote_src: yes 
+  - name: Copy files
+    shell: "cp -rp {{item.src}} {{item.dest}}"
+    loop: 
+      - {src: /mnt/usr/share/zabbix , dest: /usr/share/ }
+      - {src: /mnt/etc , dest: / }
     
   - name: import backup db
     ansible.builtin.mysql_db:
@@ -56,6 +100,8 @@
     service:
       name: zabbix-server
       state: started
+
+
 
 
 
