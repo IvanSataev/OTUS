@@ -69,7 +69,7 @@
     when: check_mnt.stat.exists
  
   - name: Mount backup repository
-    shell: cd /mnt && borg extract borg@192.168.56.20:zabbix::{{borg_backup_name.stdout}} #zabbix-2024-03-06_19:04:01
+    shell: cd /mnt && borg extract borg@192.168.56.20:zabbix::{{borg_backup_name.stdout}}
  
   - name: zabbix server stoped
     service:
@@ -145,8 +145,6 @@
       - back
       - front
       - monitoring
-
- 
 
   - name: reinit repository
     shell: 'borg init --encryption=none borg@192.168.56.20:{{item}}'
