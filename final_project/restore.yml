@@ -108,11 +108,60 @@
 - name: Restore backup
   hosts: backup
   tasks:
+  - name: Borg ssh directory
+    file:
+      dest: /root/.ssh/
+      owner: root
+      group: root
+      state: directory
+      mode: 0700 
+
+  - name: Borg ssh keypair
+    copy:
+      src: ./staff/id_ssh_rsa_borg
+      dest: /root/.ssh/id_rsa        
+      owner: root
+      group: root
+      mode: 0600 
+
+  - name:  Add keypair known host
+    shell: 'ssh-keyscan -H 192.168.56.20 >> /root/.ssh/known_hosts'
+    delegate_to: "{{item}}" 
+    loop:
+      - back
+      - front
+      - monitoring
+      - backup
+
+  - name: Borg ssh keypair
+    copy:
+      src: ./staff/id_ssh_rsa_borg
+      dest: /root/.ssh/id_rsa        
+      owner: root
+      group: root
+      mode: 0600 
+    delegate_to: "{{item}}"
+    loop:
+      - back
+      - front
+      - monitoring
+
+ 
+
   - name: reinit repository
     shell: 'borg init --encryption=none borg@192.168.56.20:{{item}}'
     loop:
       - zabbix
-      - monitoring
+      - log
       - application-front
       - application-back
     ignore_errors: yes
+
+  - name: Backup not encrypt repo accept
+    shell: 'yes | borg list borg@192.168.56.20:{{item.repo}}'
+    delegate_to: "{{item.deleg}}"
+    loop: 
+      - {deleg: monitoring ,repo: zabbix}
+      - {deleg: monitoring ,repo: log} 
+      - {deleg: front ,repo: application-front} 
+      - {deleg: back ,repo: application-back}

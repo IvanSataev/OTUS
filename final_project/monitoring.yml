@@ -352,7 +352,7 @@
       path: /etc/ssh/sshd_config
       regexp: '^\s*.?\s*PasswordAuthentication no'
       line: 'PasswordAuthentication yes'
-    notify: SSHD RELOAD 
+    notify: RESTART SERVICE SSHD 
     
   - name: Create backup directory 
     file:
