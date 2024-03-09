@@ -1,0 +1,9 @@
+PidFile=/var/run/zabbix/zabbix_agentd.pid
+LogFile=/var/log/zabbix/zabbix_agentd.log
+LogFileSize=0
+Server=192.168.56.15
+ServerActive=192.168.56.15
+ListenIP=192.168.56.{% if ansible_hostname == 'back' %}10{%elif ansible_hostname == 'front'%}5{% endif %}
+
+HostnameItem=system.hostname
+Include=/etc/zabbix/zabbix_agentd.d/*.conf 

@@ -15,7 +15,6 @@
         state: restarted
         enabled: yes   
         
-
     - name: CHRONYD RESTART
       service:
         name: chronyd 
@@ -26,6 +25,12 @@
         name: rsyslog 
         state: restarted
         enabled: yes        
+    
+    - name: RESTART FIREWALLD
+      service:
+       name: firewalld
+       state: restarted
+    
   tasks:
   - name: Open ssh perminition
     lineinfile:
@@ -40,6 +45,11 @@
       name: 'Asia/Vladivostok' 
     notify: CHRONYD RESTART  
 
+  - name: Start firewall
+    service:
+      name: firewalld
+      state: started
+      enabled: yes
 ######### syslog ############
   - name: Install syslog soft
     yum: 
@@ -120,12 +130,22 @@
       - 514/tcp
       - 514/udp  
 
+  - name: Create ssl directory
+    file:
+      dest:  /etc/opt/rh/rh-nginx116/nginx/ssl
+      mode: 0644
+      state: directory
+      owner: root
+      group: root
 
-  # - name: copy sert zabbix
-  #   copy:
-  #     dest: /etc/opt/rh/rh-nginx116/nginx/ssl/
-  #     src: /etc/letsencrypt/live/zabbix.local.com/ 
-  #     remote_src: yes
+  - name: Copy ssl configure zabbix
+    copy:
+      dest: /etc/opt/rh/rh-nginx116/nginx/ssl/
+      src: staff/
+    loop: 
+      - {dest: /etc/opt/rh/rh-nginx116/nginx/ssl/ , src: staff/server.pem}
+      - {dest: /etc/opt/rh/rh-nginx116/nginx/ssl/ , src: staff/server.key}
+      - {dest: /etc/opt/rh/rh-nginx116/nginx/conf.d/ , src: staff/ssl-zabbix.conf}
 
   # - name: Selinux add rule
   #   shell: 'grep AVC /var/log/audit/audit.log* | audit2allow -M systemd-allow; semodule -i systemd-allow.pp'
@@ -279,7 +299,13 @@
     - name: CHRONYD RESTART
       service:
         name: chronyd 
-        state: restarted     
+        state: restarted  
+
+    - name: RESTART FIREWALLD
+      service:
+       name: firewalld
+       state: restarted
+           
 
   tasks:
   - name: add repo zabbix
@@ -307,7 +333,12 @@
     timezone:
       name: 'Asia/Vladivostok' 
     notify: CHRONYD RESTART  
-
+  
+  - name: Start firewall
+    service:
+      name: firewalld
+      state: started
+      enabled: yes
 ############RSYSLOG###################
   - name: Borg rsyslog conf
     copy:

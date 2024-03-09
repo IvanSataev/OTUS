@@ -1,0 +1,2 @@
+Restore password gallery3:
+php index.php passwordreset <username>

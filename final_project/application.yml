@@ -3,15 +3,6 @@
   hosts: front, back
   vars:
     - mysql_root_password: myrootpw
-    - zabbix_conf: |
-        PidFile=/var/run/zabbix/zabbix_agentd.pid
-        LogFile=/var/log/zabbix/zabbix_agentd.log
-        LogFileSize=0
-        Server=192.168.56.15
-        ServerActive=192.168.56.15
-        ListenIP="{{ansible_default_ipv4.address}}"
-        HostnameItem=system.hostname
-        Include=/etc/zabbix/zabbix_agentd.d/*.conf 
   vars_files:
     -  staff/vars      
   handlers: 
@@ -40,7 +31,11 @@
     - name: RESTART SERVICE ZABBIX
       service:
         name: zabbix-agent
-        state: restarted           
+        state: restarted  
+    - name: RESTART FIREWALLD
+      service:
+       name: firewalld
+       state: restarted             
   tasks:
   - name: Open ssh perminition
     lineinfile:
@@ -85,9 +80,12 @@
 
   - name: Docker start
     service:
-      name: docker
+      name: "{{item}}"
       state:  started
       enabled: yes
+    loop: 
+      - firewalld  
+      - docker
 
   - name: Create borg user
     user:
@@ -138,8 +136,7 @@
      
       # Создание бэкапа
       ExecStart=/bin/borg create  -C zstd ${REPO}application-{{ansible_hostname}}::application-{now:%%Y-%%m-%%d_%%H:%%M:%%S} /etc /opt/
-      
-
+    
     notify: BORG SERVICE
 
   - name: Create unit timer
@@ -176,9 +173,9 @@
     notify: RSYSLOG RESTART
 
   - name: ZABBIX CONF
-    copy:
+    template:
+      src: staff/zabbix_template.j2
       dest: "/etc/zabbix/zabbix_agentd.conf"
-      content: "{{ zabbix_conf }}"
     notify: RESTART SERVICE ZABBIX
   
   - name: START ZABBIX
