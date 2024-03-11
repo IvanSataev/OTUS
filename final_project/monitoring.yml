@@ -129,6 +129,7 @@
       - 443/tcp
       - 514/tcp
       - 514/udp  
+    notify: RESTART FIREWALLD
 
   - name: Create ssl directory
     file:
@@ -138,13 +139,31 @@
       owner: root
       group: root
 
+  - name: Create ssl directory
+    file:
+      dest:  /var/log/nginx
+      mode: 0644
+      state: directory
+      owner: nginx
+      group: nginx
+      
+  - name: Create ssl directory
+    file:
+      dest:  '/var/log/nginx/{{item}}'
+      mode: 0644
+      state: touch
+      owner: nginx
+      group: nginx  
+    loop:    
+      - error.log
+      - access.log
   - name: Copy ssl configure zabbix
     copy:
-      dest: /etc/opt/rh/rh-nginx116/nginx/ssl/
-      src: staff/
+      dest: "{{item.dest}}"
+      src: "{{item.src}}"
     loop: 
-      - {dest: /etc/opt/rh/rh-nginx116/nginx/ssl/ , src: staff/server.pem}
-      - {dest: /etc/opt/rh/rh-nginx116/nginx/ssl/ , src: staff/server.key}
+      - {dest: /etc/opt/rh/rh-nginx116/nginx/ssl/ , src: staff/gallery3/ssl/server.pem}
+      - {dest: /etc/opt/rh/rh-nginx116/nginx/ssl/ , src: staff/gallery3/ssl/server.key}
       - {dest: /etc/opt/rh/rh-nginx116/nginx/conf.d/ , src: staff/ssl-zabbix.conf}
 
   # - name: Selinux add rule
