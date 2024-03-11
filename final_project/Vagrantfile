@@ -36,6 +36,10 @@ Vagrant.configure("2") do |config|
             ansible.playbook = 'application.yml'
             ansible.become_user = "root" 
             ansible.compatibility_mode = "2.0"
+            ansible.host_vars = {
+              "front"  => {"ansible_host_ip" => "192.168.56.5"},
+              "back" => {"ansible_host_ip" => "192.168.56.10"}
+          }
             ansible.become = true
         end
       end

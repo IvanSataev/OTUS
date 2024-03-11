@@ -30,15 +30,17 @@ services:
       DB_PREFIX:
       SITE_DOMAIN:
       SITE_PROTOCOL:
-    expose:
-      - "80:80"
+    ports:
+      - "8080:80"
     volumes:
       - ./gallery-var:/var/www/html/var
   nginx: 
       image: nginx:1.21
       volumes: 
-      - ./nginx.conf:/etc/nginx/conf.d/nginx-proxy.conf 
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
       - ./ssl:/etc/nginx/ssl 
+      extra_hosts:
+        - "gallery.local.com:192.168.56.5"
       ports:
        - 443:443
        - 80:80    

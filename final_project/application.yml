@@ -48,7 +48,13 @@
   - name: Chronyd configure
     timezone:
       name: 'Asia/Vladivostok' 
-    notify: CHRONYD RESTART  
+    notify: CHRONYD RESTART 
+
+  - name: Add dns
+    ansible.builtin.lineinfile:
+      path: /etc/hosts
+      regexp: '\s*{{ansible_host_ip}}\s*gallery.local.com'
+      line: '{{ansible_host_ip}} gallery.local.com'
 
   - name: add repo zabbix
     copy:
