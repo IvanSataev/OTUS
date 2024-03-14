@@ -28,11 +28,12 @@
     when: check_docker.stat.exists
 
   - name: Get name backup
-    shell: "borg list borg@192.168.56.20:application-{{ansible_hostname}} | tail -3 | head -1 | awk '{print $1}'"
+    shell: "borg list borg@192.168.56.20:application-{{ansible_hostname}} | tail -7 | head -1 | awk '{print $1}'"
     register: borg_backup_name
 
   - name: Mount backup repository
     shell: "cd /mnt && borg extract  borg@192.168.56.20:application-{{ansible_hostname}}::{{borg_backup_name.stdout}}"
+
 
   - name: Copy files
     copy:
@@ -40,7 +41,8 @@
       dest: /opt/
       remote_src: yes
       mode: preserve
-
+  # - name: Copy files
+  #   shell: "cp -rp /mnt/opt/gallery3 /opt/"
   - name: docker compose up
     shell: 'cd /opt/gallery3 && docker compose -p gallery3 up -d'    
 

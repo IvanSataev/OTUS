@@ -40,7 +40,7 @@ services:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
       - ./ssl:/etc/nginx/ssl 
       extra_hosts:
-        - "gallery.local.com:192.168.56.5"
+        - "gallery.local.com:192.168.56.{% if ansible_hostname == 'back' %}10{%elif ansible_hostname == 'front'%}5{% endif %}"
       ports:
        - 443:443
        - 80:80    

@@ -1,2 +1,21 @@
 Restore password gallery3:
 php index.php passwordreset <username>
+14329b
+admin
+
+
+monitoring: 
+real	9m76.590s
+user	0m34.553s
+sys	0m12.845s
+front
+real	11m81.170s
+user	0m33.701s
+sys	0m57.801s
+back
+real	10m9.329s
+user	0m26.442s
+sys	0m36.008s
+
+
+5 * * * * root rsync -rapv /opt/gallery3/gallery-var/ root@192.168.56.10:/opt/gallery3/

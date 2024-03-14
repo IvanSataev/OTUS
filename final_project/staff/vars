@@ -1,2 +1,2 @@
-log_position: "342"
-log_master: "mysql-bin.000009"
+log_position: "640"
+log_master: "mysql-bin.000002"

@@ -146,7 +146,7 @@
       state: directory
       owner: nginx
       group: nginx
-      
+
   - name: Create ssl directory
     file:
       dest:  '/var/log/nginx/{{item}}'
@@ -430,13 +430,13 @@
       mode: 0600
 
   - name: Generate keypair 
-    ansible.builtin.openssh_keypair:
+    openssh_keypair:
       path: /home/borg/.ssh/id_ssh_rsa
       owner: borg
       group: borg
 
   - name: COPY /home/borg/.ssh/authorized_keys
-    ansible.builtin.copy:
+    copy:
       src: /home/borg/.ssh/id_ssh_rsa.pub
       dest: /home/borg/.ssh/authorized_keys
       owner: borg
@@ -445,7 +445,7 @@
       remote_src: yes
 
   - name: COPY /home/borg/.ssh/id_ssh_rsa
-    ansible.builtin.fetch:
+    fetch:
       src: /home/borg/.ssh/id_ssh_rsa
       dest: ./staff/id_ssh_rsa_borg    
       flat: yes

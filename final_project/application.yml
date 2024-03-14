@@ -2,6 +2,7 @@
 - name: Prepare server monitoring
   hosts: front, back
   vars:
+    #- ansible_host_ip: "192.168.56.5"
     - mysql_root_password: myrootpw
   vars_files:
     -  staff/vars      
@@ -51,11 +52,18 @@
     notify: CHRONYD RESTART 
 
   - name: Add dns
-    ansible.builtin.lineinfile:
+    lineinfile:
       path: /etc/hosts
       regexp: '\s*{{ansible_host_ip}}\s*gallery.local.com'
       line: '{{ansible_host_ip}} gallery.local.com'
 
+  - name: add crontab task    
+    lineinfile:
+      path: /etc/crontab
+      regexp: '.*root\s+rsync\s+-rapv\s+\/opt\/gallery3\/gallery-var'
+      line: '*/1 * * * * root rsync -rapv /opt/gallery3/gallery-var root@192.168.56.10:/opt/gallery3/'
+    when: (ansible_hostname == "front")  
+  
   - name: add repo zabbix
     copy:
       dest: /etc/yum.repos.d/zabbix.repo
@@ -67,7 +75,7 @@
           gpgcheck=0 
 
   - name: Add docker repo 
-    ansible.builtin.copy:
+    copy:
       src: staff/docker.repo  
       dest: /etc/yum.repos.d/docker-ce.repo
       owner: root
@@ -107,7 +115,29 @@
       group: root
       state: directory
       mode: 0700 
+
+  - name: Copy configure file ssh
+    ansible.builtin.template:
+      src: staff/ssh.conf
+      dest: /root/.ssh/config
+      owner: root
+      group: root
+    when: (ansible_hostname == "front")
+
+  - name: Generate keypair 
+    ansible.builtin.openssh_keypair:
+      path: /root/.ssh/id_ssh_rsa
+      owner: root
+      group: root
+    when: (ansible_hostname == "front")
   
+  - name: COPY /root/.ssh/id_ssh_rsa
+    fetch:
+      src: /root/.ssh/id_ssh_rsa.pub
+      dest: ./staff/id_ssh_rsa_root  
+      flat: yes
+    when: (ansible_hostname == "front")
+
   - name: Borg ssh keypair
     copy:
       src: ./staff/id_ssh_rsa_borg
@@ -116,9 +146,21 @@
       group: root
       mode: 0600
 
+  - name: Root ssh keypair
+    copy:
+      src: ./staff/id_ssh_rsa_root
+      dest: /root/.ssh/authorized_keys       
+      owner: root
+      group: root
+      mode: 0600
+    when: (ansible_hostname == "back")
+
   - name:  Add keypair known host
-    shell: 'ssh-keyscan -H 192.168.56.20 >> /root/.ssh/known_hosts'
-  
+    shell: 'ssh-keyscan -H {{item}} > /root/.ssh/known_hosts'
+    loop:
+      - '192.168.56.20'
+      - '192.168.56.10'
+
   - name: Initialisation backup 
     shell: "{{item}}"
     loop:
@@ -209,11 +251,14 @@
     ansible.builtin.copy:
       src: staff/gallery3
       dest: /opt
-
-  - name: Create configuration for replication
+  
+  - name: Create configuration for replication and docker compose
     ansible.builtin.template:
-      src: staff/master.cnf
-      dest: /opt/gallery3/master.cnf  
+      src: "{{item.src}}"
+      dest:  "{{item.dest}}"
+    loop:
+      - { dest: staff/master.cnf, src: /opt/gallery3/master.cnf }
+      - { dest: staff/gallery3/docker-compose.yml , src: /opt/gallery3/docker-compose.yml}
 
   - name: docker compose up
     shell: 'cd /opt/gallery3 && docker compose -p gallery3 up -d'
