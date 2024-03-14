@@ -156,7 +156,7 @@
     when: (ansible_hostname == "back")
 
   - name:  Add keypair known host
-    shell: 'ssh-keyscan -H {{item}} > /root/.ssh/known_hosts'
+    shell: 'ssh-keyscan -H {{item}} >> /root/.ssh/known_hosts'
     loop:
       - '192.168.56.20'
       - '192.168.56.10'
@@ -257,8 +257,8 @@
       src: "{{item.src}}"
       dest:  "{{item.dest}}"
     loop:
-      - { dest: staff/master.cnf, src: /opt/gallery3/master.cnf }
-      - { dest: staff/gallery3/docker-compose.yml , src: /opt/gallery3/docker-compose.yml}
+      - { src: staff/master.cnf, dest: /opt/gallery3/master.cnf }
+      - { src: staff/docker-compose.yml , dest: /opt/gallery3/docker-compose.yml}
 
   - name: docker compose up
     shell: 'cd /opt/gallery3 && docker compose -p gallery3 up -d'

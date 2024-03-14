@@ -1,5 +1,9 @@
 - name: Restore machine
   hosts: back, front
+  vars: 
+    - mysql_root_password: myrootpw 
+  vars_files:
+    -  staff/vars    
   tasks:
   - name: Check state docker compose 
     stat: 
@@ -34,7 +38,6 @@
   - name: Mount backup repository
     shell: "cd /mnt && borg extract  borg@192.168.56.20:application-{{ansible_hostname}}::{{borg_backup_name.stdout}}"
 
-
   - name: Copy files
     copy:
       src: /mnt/opt/gallery3 
@@ -43,8 +46,47 @@
       mode: preserve
   # - name: Copy files
   #   shell: "cp -rp /mnt/opt/gallery3 /opt/"
+  
   - name: docker compose up
-    shell: 'cd /opt/gallery3 && docker compose -p gallery3 up -d'    
+    shell: 'cd /opt/gallery3 && docker compose -p gallery3 up -d'   
+  
+  - name: sleep 10
+    shell: sleep 10
+    
+  - name: get log position
+    shell: docker exec -it gallery3-mysql-1 mysql -uroot -p"{{ mysql_root_password }}" -e "SHOW MASTER STATUS;" | grep "bin" | awk '{print ${{item}}}'
+    loop: 
+      - 4
+      - 2
+    register: log_pos
+    when: (ansible_hostname == "front")
+
+  - name: create vars files
+    copy:
+      dest: vars
+      content: |
+        log_position: "{{log_pos.results[0].stdout}}"
+        log_master: "{{log_pos.results[1].stdout}}"
+    when: (ansible_hostname == "front")
+
+  - name: fetch vars log_pos
+    fetch:
+      src: vars
+      dest: staff/vars
+      flat:  yes
+    when: (ansible_hostname == "front")  
+
+  - debug:
+      var: log_master, log_position  
+
+  - name: Slave replication
+    shell: docker exec -it gallery3-mysql-1 mysql -uroot -p"{{ mysql_root_password }}" -e  "{{item}}"
+    loop: 
+    - "STOP SLAVE"
+    - "CHANGE MASTER TO MASTER_HOST='192.168.56.5', MASTER_USER='replication', MASTER_LOG_FILE='{{log_master | default('')}}', MASTER_LOG_POS={{log_position}};"
+    - "START SLAVE;"
+    delegate_to: back
+    when: (ansible_hostname == "front")
 
 
 
